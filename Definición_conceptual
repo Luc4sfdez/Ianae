@@ -1,0 +1,123 @@
+# IANAE: Inteligencia Adaptativa No Algorítmica Emergente 
+
+## Definición conceptual
+
+IANAE (Inteligencia Adaptativa No Algorítmica Emergente) es un sistema experimental que explora un nuevo paradigma de inteligencia artificial fundamentado en conceptos difusos, relaciones probabilísticas y comportamientos emergentes, en contraste con los enfoques algorítmicos tradicionales de la IA.
+
+A diferencia de los sistemas de IA convencionales que siguen reglas deterministas, IANAE se caracteriza por:
+
+- **Representaciones vectoriales difusas**: Los conceptos no son entidades discretas sino representaciones vectoriales multidimensionales con incertidumbre inherente.
+- **Relaciones probabilísticas**: Las conexiones entre conceptos poseen diferentes grados de fuerza y evolucionan con el tiempo.
+- **Propagación no determinística**: La activación se propaga a través de la red conceptual con elementos estocásticos que simulan la imprecisión del pensamiento natural.
+- **Auto-modificación**: El sistema puede alterar sus propias estructuras basándose en patrones de activación.
+- **Emergencia**: Nuevos conceptos pueden surgir como combinaciones de los existentes sin programación explícita.
+
+## Arquitectura del sistema
+
+IANAE se estructura en cuatro componentes principales:
+
+### 1. Núcleo cognitivo (`nucleo.py`)
+
+- Conceptos difusos: Representados como vectores multidimensionales con componentes probabilísticos.
+- Red de relaciones: Conexiones ponderadas entre conceptos que evolucionan dinámicamente.
+- Mecanismos de propagación: Algoritmos que simulan cómo la activación se extiende a través de la red conceptual.
+- Capacidades de auto-modificación: Funciones que permiten al sistema reforzar, debilitar o crear conexiones.
+- Visualización: Herramientas para representar gráficamente el estado del sistema.
+
+### 2. Pensamiento emergente (`emergente.py`)
+
+- Extracción de conceptos desde texto.
+- Asociación de ideas remotas.
+- Generación de cadenas de pensamiento.
+- Exploración divergente desde un mismo concepto.
+
+### 3. Interfaz NLP (`nlp_interface.py`)
+
+- Embeddings semánticos desde texto.
+- Detección de relaciones semánticas (hiponimia, hiperonimia, similitud).
+- Procesamiento multilingüe.
+- Análisis conceptual de documentos extensos.
+
+### 4. Interfaz de usuario (`main.py`)
+
+- Visualización de la red conceptual.
+- Gestión y activación de conceptos.
+- Observación de la propagación.
+- Ejecución de ciclos automáticos.
+
+## Principios fundamentales
+
+### Incertidumbre inherente
+
+- Los conceptos tienen componentes aleatorios.
+- La activación se propaga estocásticamente.
+- La temperatura controla el grado de aleatoriedad.
+
+### Emergencia sobre determinismo
+
+- No hay reglas predefinidas para relacionar conceptos.
+- Las estructuras emergen de interacciones simples.
+- El comportamiento global no está programado.
+
+### Auto-modificación y aprendizaje
+
+- Conexiones reforzadas o debilitadas por experiencia.
+- Nuevos conceptos por combinación de existentes.
+- Evolución sin intervención externa.
+
+## Ciclos de vida y procesos
+
+### Ciclo de vida de un concepto
+
+1. **Creación**
+2. **Activación**
+3. **Auto-modificación**
+4. **Evolución**
+
+### Ciclo de vida del sistema
+
+1. **Inicialización** con conceptos semilla.
+2. **Ciclo continuo**: activación, auto-modificación y generación.
+
+## Proceso de pensamiento emergente
+
+1. Entrada de conceptos.
+2. Exploración de relaciones.
+3. Generación de cadenas.
+4. Visualización de resultados.
+
+## Aplicaciones potenciales
+
+- Razonamiento creativo.
+- Adaptación a entornos cambiantes.
+- Organización de conocimiento.
+- Comprensión contextual del lenguaje.
+- Simulación de procesos cognitivos humanos.
+
+## Estado actual y futuro
+
+### Capacidades actuales
+
+- Representación y manipulación de conceptos difusos.
+- Propagación estocástica.
+- Auto-modificación.
+- Generación emergente de conceptos.
+- Extracción desde texto.
+- Visualización interactiva.
+
+### Limitaciones actuales
+
+- Escalabilidad (~1000 conceptos).
+- NLP básico.
+- Persistencia simple (JSON).
+- Sin capacidades multimodales.
+
+### Roadmap
+
+- **Corto plazo (6 meses)**: interfaz NLP, persistencia eficiente, escalabilidad.
+- **Medio plazo (12 meses)**: atención, objetivos, aprendizaje continuo.
+- **Largo plazo (24 meses)**: integración multimodal, razonamiento causal, aplicaciones por dominio.
+
+## Conclusión
+
+IANAE es un enfoque inspirado en el pensamiento humano, que redefine la incertidumbre como una característica esencial. Ofrece un camino alternativo en IA, con potencial para sistemas adaptativos, evolutivos y creativos, más cercanos a la cognición natural.
