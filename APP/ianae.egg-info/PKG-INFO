@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: ianae
+Version: 0.1
+Requires-Dist: numpy
+Requires-Dist: torch
+Requires-Dist: torchvision
+Requires-Dist: Pillow
+Dynamic: requires-dist

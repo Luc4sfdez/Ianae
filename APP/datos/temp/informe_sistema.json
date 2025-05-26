@@ -1,0 +1,99 @@
+{
+  "num_conceptos": 15,
+  "num_conexiones": 39,
+  "edad_sistema": 100,
+  "conceptos_creados_total": 56,
+  "ciclos_pensamiento": 134,
+  "auto_modificaciones": 42,
+  "conceptos_apartados": 4,
+  "activaciones_promedio": 33.86666666666667,
+  "activaciones_max": 76,
+  "activaciones_min": 1,
+  "peso_conexion_promedio": 0.18819918435716487,
+  "peso_conexion_max": 0.7276059117369025,
+  "peso_conexion_min": 0.05,
+  "conceptos_mas_activos": [
+    [
+      "red",
+      76
+    ],
+    [
+      "pensamiento",
+      64
+    ],
+    [
+      "adaptaci\u00f3n",
+      64
+    ],
+    [
+      "evoluci\u00f3n",
+      48
+    ],
+    [
+      "emergencia",
+      43
+    ],
+    [
+      "no_determinismo",
+      42
+    ],
+    [
+      "lenguaje",
+      33
+    ],
+    [
+      "paralelismo",
+      29
+    ],
+    [
+      "conocimiento",
+      27
+    ],
+    [
+      "difuso",
+      23
+    ]
+  ],
+  "conceptos_mas_conectados": [
+    [
+      "concepto_15",
+      42
+    ],
+    [
+      "pensamiento",
+      14
+    ],
+    [
+      "adaptaci\u00f3n",
+      12
+    ],
+    [
+      "concepto_16",
+      12
+    ],
+    [
+      "red",
+      11
+    ],
+    [
+      "evoluci\u00f3n",
+      10
+    ],
+    [
+      "paralelismo",
+      9
+    ],
+    [
+      "no_determinismo",
+      8
+    ],
+    [
+      "lenguaje",
+      7
+    ],
+    [
+      "conocimiento",
+      7
+    ]
+  ]
+}
