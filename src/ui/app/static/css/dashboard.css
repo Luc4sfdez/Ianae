@@ -1,0 +1,121 @@
+/* Dashboard Custom Styles */
+
+:root {
+    --primary-blue: #60a5fa;
+    --bg-dark: #111827;
+    --bg-card: #1f2937;
+    --border-color: #374151;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* Hover effects */
+.hover\:bg-gray-750:hover {
+    background-color: #243447;
+}
+
+/* Modal backdrop */
+#document-modal {
+    backdrop-filter: blur(4px);
+}
+
+/* Smooth transitions */
+* {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Code blocks en modal */
+#modal-content {
+    line-height: 1.6;
+}
+
+/* Loading states */
+.loading {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.25rem;
+}
+
+/* Typography */
+.font-mono {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    table {
+        font-size: 0.75rem;
+    }
+
+    #documents-table {
+        overflow-x: auto;
+    }
+}
+
+/* D3.js Network */
+#network-svg, #ingest-network-svg, #exp-network-svg {
+    user-select: none;
+}
+
+/* Experiment panels */
+.bg-gray-750 {
+    background-color: #243447;
+}
+
+/* Tab transitions */
+.tab-panel {
+    transition: opacity 0.2s ease;
+}
+
+/* Print styles */
+@media print {
+    header {
+        display: none;
+    }
+
+    .no-print {
+        display: none;
+    }
+}

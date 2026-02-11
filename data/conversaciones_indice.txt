@@ -1,0 +1,245 @@
+# Índice de conversaciones exportadas de Claude
+# Total: 240 conversaciones
+# Ubicación original: IANAE/memory/conversations_database/
+# NO incluidas en la reorganización (son datos, no código)
+
+000_IANAE_MEMORY_SUMMARY.json
+001_Installing Debian 12 on X88 Pro 13 TV Box_e9681a58-61e7-4086-91fb-58d7fde0372f.json
+005_Troubleshooting Circular Image Transformation Code_82bc8c74-5fa6-434d-b8e3-d0d5a8239c0d.json
+017_mascara para identificar leva_bfe7499c-696e-46f7-b95b-ab0bf63be849.json
+018_Detecting Line Between Geometric Centers_112979d8-8db0-45d9-9d84-80fc13c46641.json
+019_Detailed Excel Assistance for Non-Programmers_caac6a1f-af8d-4808-ae12-c4c8e4b1b02e.json
+021_Comprehensive Code Review for Globofleet Project_c44a17e5-7f0b-456c-95fe-91684e4684ec.json
+025_Organizing Excel Modules with Duplicate and Unused_ff4a8663-49a7-497e-8306-b9505426e161.json
+030_20241020 selectores Reading Tachograph Disks with _a26b4ee4-2c49-46f6-9d05-c47f095503b4.json
+031_Retomar Discov0.1 para migrar a wp en JS_0a852f17-9b6c-4395-877d-d207f8aa0d2b.json
+036_Meaning of Machine Learning Model Output_24be0019-dbb0-4d38-9723-b2c094ecbed0.json
+037_formularios con js para analisis discos instalacio_46445bf4-ea96-4cae-b861-207f893424b3.json
+038_Automating Activity Data Processing in VBA_6b06291c-fcc8-46f1-9d65-ed15b8483309.json
+040_Completing the ExcelProcessor class_e463649b-9094-415f-956a-3efdaeb1681e.json
+041_Requesting Usage Limits and Calendar for Paid Acco_45e084eb-4a76-4620-a777-8b4037c99d78.json
+043_Custom Web App with User Registration_60b2404e-5664-4855-9958-f0dc9eb64415.json
+044_Automated Extraction of Spanish Vehicle Registrati_95e3f816-0a5c-4f57-9fb1-37403062b71f.json
+045_Summarizing Task Implementation Status_6cd78ccc-5be4-4707-9ee9-17306239de59.json
+046_Reviewing Project Requirements_50225a6a-9b65-45c6-b181-fc03ddf7035e.json
+049_Locating a Specific Point in a Circular Image_4901acb8-8463-428d-a5a5-dba56b3668d1.json
+053_disco en html_42ba960b-1a39-42f0-a488-21c4492efbed.json
+057_sin acabar arreglo entrada excelAutomating Excel D_92151454-cbce-49f2-8b78-0726a4ab4902.json
+058_Estirar disco y horas_93579442-10c0-4e22-8e6c-cb7dffe2e0a6.json
+059_macrosPorPartes2_0b04bc00-5e45-47b5-8328-12631dad4c15.json
+060_Excel to CSV Converter with Interactive Sheet Sele_ed6b0581-f8a5-4d84-8c0b-465bf745e650.json
+061_Unifying Continental Mobility Services Login Desig_ec0df49e-3cd9-4658-9387-74216aeb957d.json
+063_Analyzing Tachograph Disk Images_aecc7e12-00c4-4d1b-9bd5-c18886103b7b.json
+065_Analyzing Driver Activity Data with VBA_00f3c25a-d5f0-4f44-a4f0-b17b2ed4f4e6.json
+066_20241106 excel2py_1c0c007b-7573-45fb-bd27-05edce26d5ec.json
+067_descansos_babec3f1-fc50-4891-817a-ef937b46037e.json
+074_Responsive GUI for Tachograph Application_e4d83d64-61f7-4ec3-a60b-17b8c71c7546.json
+075_Detailed Python code for reading tachograph data_fdac53ff-1c3b-4ca1-a388-9eb289fd6862.json
+076_fallos python_d451c818-122a-4572-b398-98121e68601f.json
+078_palntillasExcel2Word_2ff973ba-6ee9-478a-8780-cc0e22441b89.json
+079_Using the Claude API_d2bd83bd-6b0d-4d0c-9b94-971b641c9b7c.json
+080_Extracting Daily Start and End Times from Excel Ta_c60c1451-ca5f-42ea-8c81-88cda9a65362.json
+081_limpiar fechas de columna horas_63f068ca-2a6e-4c5a-b3fe-98e05669a82c.json
+082_Debugging and Reverse Engineering Techniques_f406d629-27c0-49cf-94d0-1883683eb530.json
+083_Comprehensive Project Summary and Continued Analys_2c45986a-cf58-403e-886e-4367934bed39.json
+084_Optimizing and Documenting GFV01 Code_ab517636-7d32-43a2-a500-c5a11537b0e2.json
+085_Daily Activity Consolidation Analysis_390f6ec2-ca24-4857-9a7d-0f7ddf1422c6.json
+086_Detailed VBA Solution for Digital Tachograph File _c16f2479-feac-4715-97a7-20e1dffa2317.json
+087_Customizing WordPress for Your Business Needs_319cfc65-4c76-4620-937b-e424d1d43ff8.json
+088_Automated Image Processing for Concentric Circles_e0b0828f-70b8-40ef-ba1f-ea5ece0e34cb.json
+091_Automating Word Template Filling from Excel Data_77ef1af1-a05b-49b7-833d-05742c12a566.json
+092_Reorganizing Excel Data and Updating Word Macros_55def096-65c0-4b9d-995e-6dcd77931389.json
+093_Explaining a Workplace Scheduling Program_fef7ccc2-943d-4dd2-86e3-1302e171a585.json
+095_Excel Data Extraction and Word Document Generation_55cfb990-61b5-4587-9d55-034f3c5eaa01.json
+096_VBA Code for Excel Overtime Analysis_1a4874e8-2f09-457b-b9ae-b858e3eb21e4.json
+097_Troubleshooting Digital Signature Verification_8ba7619e-7cfe-4540-9895-91e05454e8d3.json
+098_Roadmap App Development Discussion_6ad617eb-2027-4663-b9f5-550ed49e8a19.json
+099_Excel VBA Module for Shift Management_37f72f97-4b8b-438d-8366-5d6397731ff9.json
+101_Export Excel Sheets to HTML_7df595bf-e211-4681-b440-ecd2c25eba8c.json
+102_Automating Daily Activity Totals in Excel_37bc6ad3-e615-494a-aadd-1eb2fb57de7a.json
+103_Troubleshooting Python package installation error_655e6b07-d59b-4170-aea8-8a669662b509.json
+104_Macro to Insert Date and Enrollment Number in Exce_99fc8d98-90d8-4e97-887a-c1ffd8a6c080.json
+105_Excel-Word Data Mapping and Validation System_1fc9e956-d5f7-4358-9837-9fa7c4910d7b.json
+106_Digital Tachograph File Processing System_a798de45-3b24-491c-a92b-dbc8a731cf92.json
+107_Duplicating FacturaScripts Container on NAS Server_529c63d7-62d0-4e89-a3da-999b02931e49.json
+108_Technical Documentation for Data Processing and Re_ac629dff-2b4a-4a58-9ee1-e7debf154a8c.json
+109_Analyzing Macro Code to Understand Column Values_de840641-dafd-4929-8f79-8a9a29d90ac0.json
+110_Converting Unix Timestamp to Date_886529df-f173-4b6b-9c64-62ee9aa6f537.json
+112_Using Replit's Code Generation Model_a6b5a514-7ca1-4766-a959-8b3b2b146d93.json
+113_Understanding PDF Summarization System_75c3823a-9197-4624-8a27-9d5f847702ef.json
+114_Investigating USB tool that hosts web server_3dbfea39-91b9-4cad-8d04-175a3c809210.json
+115_Excel Mapping Module Technical Summary_8c9c944c-cb8c-4a11-977e-e0c36ee7a309.json
+116_Automating Excel-Word Integration_17706b1b-2ed4-4bd2-b7c7-ce9013ff5608.json
+117_Troubleshooting Excel VBA Routine_3332edf7-243b-45d3-b504-4e3051511073.json
+118_Sorting Excel Dates with Apostrophes_9863e9e4-e768-4baa-8f68-ede034ec774a.json
+119_FreeFileSync_ Open-Source File Synchronization Sof_bb5b2893-b8bc-426b-8278-7a7e398ab989.json
+120_Excel Macros for Detailed Labor Activity Analysis_ff3c0d65-caf8-49dd-ab1a-bbff2af1a763.json
+122_Debian installation issues on MSI MPG Z490 Gaming _d87ea687-57ba-41c6-b63a-b8ad8f013de0.json
+123_Separating Positive and Negative Values in a Colum_23e416f8-2d65-4d1d-8054-7aecfd21919e.json
+124_Configuring Synology NAS Remote Access_b6960c99-a354-40f7-ab08-64aeb51aa99a.json
+125_Methodology for Analyzing Deviations in Work Hours_0c8e41ba-1dee-4cfb-98d6-87806071ee3a.json
+126_Secure Virtual Environment for Windows App Analysi_339b43ea-d1ae-4e4e-a5c3-436fbd300712.json
+127_Automating Excel Data Entry from Text Files_5183bcae-91ca-4ed2-92ae-2a0a632e3da7.json
+129_Calculating Daily Tachograph Activity Summaries_a4cb08c5-533a-400c-9522-0088f00671c0.json
+131_Resolving Visual Studio Code Freeze with 214,000 T_2d2de880-2fc6-4d82-84ec-311295828297.json
+132_Automating Driver Activity Reports in Excel_7ac13c65-3235-43c5-a3e8-c8fc278c8f03.json
+133_Configuring Deepseek in Visual Studio Code_ac7eb801-dc9d-4cfc-b18d-665c1c168cf7.json
+134_Formatting a Table in Code_5d1703d6-b2bb-421c-b109-59fc6acaf857.json
+135_Monthly Break Compensation Macro_5bcd1e55-c93b-4aad-8147-7090db929a63.json
+136_Removing _@_ symbols from spreadsheet cells_01b3b933-6aae-42db-9ef0-bef1cf7f324b.json
+137_Reading Digital Tachograph Files_1024b30e-6ad0-4346-82a0-7620dcae4688.json
+138_Excel Macro to Export Worksheets to CSV_b3871491-f1f0-4c39-afe1-a850a027c3db.json
+139_Macro to Fill Blank Cells in Excel Column_34c5704c-2d0f-4573-b16a-dc9a2a18ad8a.json
+140_Combine Multiple Text Files into Excel Sheet_24fb90bc-19bd-4396-9f7c-eb9c02f9ddd6.json
+141_Excel Macros to Separate Shift Data by Year_b9c71c4d-4397-448f-996c-b549beaf23f0.json
+142_Continuing Conversation on TGD_DDD File Analyzer_9cabb5cc-ac7d-48d6-8521-477aef55f568.json
+143_Troubleshooting Cline in Visual Studio Code_b166a711-0428-482a-bc51-f9e8ce17cf08.json
+144_Analyzing Monthly Work Patterns of Drivers_c68d54b4-b78e-4ee9-b847-51a239359ec9.json
+145_Troubleshooting Pylance Errors_770125a0-505d-4397-936e-8067e0d4cf63.json
+146_Alternative Names for UK Visa Application Forms_a5a06f5b-29dc-439c-9e2e-1a4d4d8c5c2e.json
+147_Consolidate Excel Files with VBA Macro_64d6ac6b-143c-40d5-8918-ce9e723b1b2c.json
+148_Generate QR Codes Locally with JavaScript_a47164e9-3cb1-4a6a-a73f-7b723a8836ea.json
+149_Installing Immich Docker on Synology DS923+_543188d3-2ef9-4ec6-a0a7-0c59161a0c42.json
+150_Changing Date Format in Excel Macro_a0cf5c56-483f-4437-ab6f-5adb1fa3366e.json
+151_Using Google Calendar_9f3ab23f-bdd8-45a2-9015-3303dfcbc50e.json
+152_Organizing Client Files from USB_4064a337-8dff-4897-9ff9-3483044909c1.json
+153_Web Scraping Techniques and Best Practices_5d9537d9-8824-4cb2-8079-1cde75b3e24d.json
+154_Implementing Digital Signature Verification for Ta_0532a944-1994-4934-ab93-5480c6138d64.json
+155_Customizing a Debian-based Linux Distribution for _5274cfb5-3ccc-4402-9c53-0c2915ce8253.json
+156_Guía para crear un agente basado en DeepSeek LLM e_5f3fa84f-aafd-40cd-ad61-ed26c38e073c.json
+157_Automating File Handling in Globofleet with Python_3ba54bdb-f2c6-4fea-816a-9fa84b7b35da.json
+158_Friendly Spanish Greeting_06523855-92f0-4075-a734-3bf23829e82d.json
+159_Locating a Budget Calculator Conversation_c0bc132a-58c8-4c0d-895d-425096997fab.json
+160_Detailed Implementation Plan for Tachograph Micros_1323e742-c850-45cf-b6ca-6a39004194b7.json
+161_Image Size Exceeds Limit_56734e2d-80ae-47c5-b003-443183c87e37.json
+162_What is _Itty Bitty___813915c1-3647-4ed7-87d0-cc24762c23ab.json
+163_Verifying Digital Signatures in Tachograph Files_47942b83-4fcb-43a7-9914-16aed1044a45.json
+164_Creating a macOS Bootable Disk from Windows_159ad17d-27a5-4f0e-a868-775e3317a98a.json
+167_Converting PDF to Plain Text with Symbols_9dfe34f6-3a77-4409-8753-d67e689de31c.json
+168_Setting Up Local AI Models_8cf02d82-d9c6-4b4c-89dd-bdf4582343f7.json
+170_Installing FacturaScripts on Windows with Chocolat_99fb8985-ff06-4aa4-83e1-29d55c2d03d0.json
+171_Improving Tacogest PDF to CSV Conversion_d7ad3f6b-aa2c-4f22-a112-3c9caa817de1.json
+172_Excel to HTML_ Visualize Spreadsheet Data and Filt_8925fdf4-cd6f-4e1d-9fd2-a16d36a6a85a.json
+173_Creating a Basic HTML and JS Website_48fbb221-f9f9-4726-8195-bc266549c69b.json
+174_Verifying Digital Tachograph File Signatures_cfffa7a0-2d9a-4bc5-b2d3-7f2c91aa6282.json
+177_Summarize JavaScript code content_56cda3a6-9b9c-4d92-99f5-22c222ce64f7.json
+178_Sharing PDFs and Images_f4de25ce-70f2-4c94-8f33-3f04dd47dc18.json
+179_Macro to Identify Sundays in Excel Dates_391e249a-0bb8-475f-8eab-954e83109d17.json
+180_Formatting Markdown Documents with Advanced Featur_8d86f07a-7091-47d3-8922-0634866e92ab.json
+181_Coordinating Microservices Development with AI_01739149-4da3-4b5a-a5b8-dab382a9d805.json
+182_Convert Java Classes from JAR to Python_44c24945-a6b3-4241-91c4-8a33b3ef29ec.json
+184_Tacolu Services Portal Development Options_7c748c4d-e955-4df2-80e8-923720d44e13.json
+186_Improving the ResumenDiario TACOLU Module_73625898-4a8a-4a94-a128-173ab6857475.json
+187_Fleet Management System for Vehicle Documentation _4156258f-b9dc-4846-b82a-03f89cab74de.json
+188_Expert Report Generation System_9a3b3123-67bc-4ac6-985b-a2f2237e0621.json
+189_Grouping and Filtering CSV Activity Data_c84fbbf8-bd2f-4a40-91b7-cee2873032a3.json
+190_Configure Static IP Address on Linux Server_928d90ed-03b9-4a74-b808-d08de7efe6f7.json
+191_Completing HTML with 6 Wizard Steps_e7e0f418-c08f-4fdc-a6b3-d30db78f4642.json
+193_PUESTA EN MARCHA TACOLU.ES_1_a7dad3bf-d24c-4705-8825-e72b4dd57357.json
+194_Add Weekly and Overtime Tracking to Web App_07d45c63-1694-4bad-a22c-d208f52cf1f1.json
+195_Creating Simple Graphics with SVG_6675e4f8-b2df-417e-9852-052e0b01031e.json
+196_Improving Forensic Report System_d99ddcbb-b1a8-43c7-8ca3-e8e14bf3a172.json
+197_Straightening Distorted Document Photos_d6212ffb-82fc-438c-80ff-46c31e351f36.json
+198_Spanish Language Assistance_b3040ca3-c6df-413f-a23d-45b946644eb2.json
+200_Analyzing Payroll and Timesheet Data in Excel_74db786e-c630-49b8-b62f-eb4a4781af86.json
+201_Verify file separation accuracy_215bc08f-0bb5-4534-9325-a17de1ee0808.json
+202_Installing Synology OS on a Regular PC_fd9dfe87-8088-4e4b-b6bf-55bd2f5f8c7d.json
+203_Online Documentation System for Zoo_c81d211e-4161-47a4-a4dd-f4c1ad813a24.json
+204_Python script to generate conversation summaries_a9c37fa6-ad68-48ea-828d-fbc49b910b9b.json
+205_Troubleshooting Excel Macros_041194f7-ead9-4acd-9f54-49060b9ea62f.json
+206_Correcting Photo Perspective for User Uploads_73246e9b-1df5-4960-90ce-108e41b67625.json
+207_Deploying Docker on NAS Server_febc2f8b-7776-4f67-b145-d51407bcca2f.json
+208_Extracting Specific Columns from PDF in Excel usin_a6d20afb-b938-41ae-9f0c-0e68ac69dd4d.json
+209_Troubleshooting Excel sheet selection issue_218a2a36-34c5-4430-a0fd-b84682f21798.json
+210_Excel Wizard Project Setup_ea7f3083-2cbb-4dde-aa07-525909ec0024.json
+211_Office Utilities Web App with Productivity Tools_2658066c-7814-4ebd-833a-86b2e6d0432e.json
+212_Migrating Excel Macro to Python Tkinter_9a6bd1b7-6812-4b95-8ff3-feb96075f996.json
+213_Excel Macro Migration to Python App_fed9baf9-b063-4444-86e9-540cb535fb41.json
+214_Recommended Call Recording App for Xiaomi Android_f6edc108-8620-43fc-a04a-11e00b472599.json
+215_nueva Version informes periciales 2025_ababd4a4-0778-4eaa-b2d8-39ee7e4c6a4d.json
+216_TACOLU Excel Wizard Improvements_0027057b-a3d2-4d3f-a736-017346006d63.json
+217_segmentacionAA01_20241211_2_e3951f52-1489-4f29-971e-3ce704ca4cd9.json
+218_Migrating VBA Code to Python_ A Structured Approac_49dd3882-86c9-4479-a5db-ee2b1ff1ea88.json
+219_Assistance with Python Daemon_9147fc89-0f4c-4de6-8926-b36d13d0a2e0.json
+220_Convert VBA Macros to Python Tkinter App_2cc627d0-0f6b-4982-96ac-e0aa73c3ba91.json
+221_Excel File Viewer Web App_9501a4c6-144b-494d-bb52-add992cb0c5d.json
+223_Converting VBA Macros to Python Tkinter App_44d95929-2a28-45c9-9dd0-59512e048086.json
+224_Converting PDF Tables to Excel-Friendly Format_0aa6feea-6718-4686-b27a-5e2eeaec85e1.json
+225_Parsing PDF files for technical intervention data_f793caae-d4d5-4a8c-9057-11da1501e3ba.json
+226_PDF Data Extraction for Driving Time Management_2415246c-2687-4459-8fcd-d9849b52b49a.json
+227_Create Virtual Image of Physical Computer for Mac_df7fae47-c069-4aec-a6c4-737a6ca3ef6c.json
+228_Matching Website Appearance to Landing Page_01b6eaed-2ad0-43a3-a55a-8b18037adc75.json
+229_Separate JavaScript Logic into External File_1232af17-7caa-4481-9f49-481a1f3fad74.json
+230_Extracting Driving Time Data from PDF Tables_1fccefb0-ba2a-4795-862b-00c3706badf1.json
+231_Automated PDF Data Extraction and JSON Conversion_2db7a136-d955-49ee-9794-428f6bb529a7.json
+232_Troubleshooting PDF OCR script execution_02542da4-2189-46e9-b9d1-5773067f97aa.json
+233_Configuring Dual Graphics Cards for Visualization _a8694029-9dad-4d50-a97e-206a34911915.json
+234_Unidad de disco no visible en Explorador_9e8dc12f-066b-407e-b20c-e87fb3472dbe.json
+235_Troubleshooting MongoDB Shell Installation_0efc3a9b-118d-4673-bf13-36e564a24025.json
+236_Developing a Cross-Platform Web App_445f945d-29fa-4a86-9a18-63bc0953cb57.json
+237_Setting up Anthropic API key in Visual Studio Code_e3b7e052-836b-429c-87a9-1afa77c547d1.json
+238_Create a Free Personal Assistant with Google_7d3efcc3-67ad-4a86-bfbc-3b771442b9ad.json
+239_Web Project for Volunteer Management_22a494a8-8849-4070-a4ad-1481960ce6a4.json
+240_Web-based Office Utilities_ Perspective Correction_47029108-05f8-458f-90fb-95341a4b67c9.json
+241_Determining LLM Model for Local GPU Hosting_2fa4b60b-b820-456c-8cdc-95eb9a07a612.json
+242_Markdown Template Customization App_69f19f12-a00f-4337-bfb2-a1864654b287.json
+243_Reverse Engineering with Ghidra and AI Agent_cd0afa31-8c3d-40e6-afe7-73eb2e2597df.json
+244_Setting up RAID 1 on Debian 12 with NVMe drives_54c8559a-9593-43ae-b7f7-20b7a04c8858.json
+245_Modernizing Legacy COBOL Systems for Seguros Muy S_8723572d-8978-4727-b812-3175da64d95f.json
+246_Dissatisfaction with Upgraded Claude Subscription_f22288d9-0f6e-491c-9a26-090e5d86999c.json
+247_Exploring the Informational Nature of Reality_cfc8dbe7-e6b7-495a-b000-692eaef0c057.json
+248_Developing Emergent Adaptive AI_61755971-8d43-4344-b209-ab1ec6f98329.json
+249_Continuing the Narrative Analysis_fd21a038-b45d-4f46-8465-82cf61eaff81.json
+250_Comprehensive Narrative Summary in MD Format_9688835a-eb32-4751-a9db-1003c583124b.json
+251_Developing a Sarcastic, Irreverent Narrative_f4d5b735-625c-4763-8cdd-30f1ef631fbf.json
+252_Continuing the Narrative Progression_04e7672c-7dcb-4cd7-bd39-47b65e657e99.json
+253_Continuing Literary Analysis and Novel Development_3af42f72-6629-4716-838b-ef0e9296d431.json
+254_Continuing Discussion on Literary Style_7da1cdcd-18d0-458b-a069-abcbaeab687f.json
+255_Modifying Backend Server and Adding Database_a64c0aff-35f5-4dc5-906c-f778bb2af25c.json
+256_Integrating New Files into Existing Project_76276136-cbad-4a04-bb5b-807515f0469a.json
+257_Analyzing a Document Processing System_60a86732-c681-445d-9b52-971d8ea8edc0.json
+258_Reviewing Code and Understanding Purpose_3c40e4ca-9547-4d13-afe6-c3b0ffed6398.json
+259_Exporting Excel Macros_ Troubleshooting a Macro Er_a7ead801-5c6f-450f-82f9-ee27e2f16498.json
+260_Flex Module for Web Form with File Management_806db285-2f5e-4c6b-9fc0-f2b77f4db5eb.json
+261_Integrating Website Functionality with Client Data_10fc720c-961b-4c5a-915a-6c1f76cd9515.json
+262_Cutting to the Chase_ Efficient Task Completion_4cb78dff-14dd-4d3f-9bcd-e09541984902.json
+263_Sincere Consultation Requests_e5545cf9-2b17-4979-af8e-269bb2ec496f.json
+264_Resolving Frustration Efficiently_53be7b12-22db-42f6-b374-3d93df8bb3c5.json
+265_Code Analyzer Tool v0.1_40d3669f-952e-4f89-9cec-2e6945b0f920.json
+266_File Upload and Functionality Analyzer_ac8c7a12-1c73-4853-81ae-f821dfff67a9.json
+267_FacturaScripts Plugin Development_816be2bb-3a48-4dfd-a608-62d9673f2051.json
+268_Developing a Technical Project for a Declaration o_81376d3c-d31f-42ea-9204-6bcb422665ff.json
+269_Organizing a Photography Club Website with WordPre_45a55869-937e-4c47-907d-9611b4bc0bc4.json
+270_Integrating Existing Code for Collective Bargainin_5f8ad082-74f7-45a3-a424-60b1a9e44f9c.json
+271_System Architecture Analysis Summary_8019eed0-ccc0-43f0-a7ef-08aff297fbfd.json
+272_Continuing Development of Portal Tacolu App_ceb7cdbb-4047-497a-95f1-3e43d06557fd.json
+273_Exporting Equipment Data to CSV_d2fa92a9-26ef-4cb3-b29c-f780001fdb25.json
+274_Equipment Tracking and Management System_56d29656-a3a3-4b30-af2b-3003cf12cd5a.json
+275_Batch Script to Create Modular Project Structure_baca3cf6-ed34-476f-97da-03073fd43647.json
+276_Evaluating a Docker and Microservices Study Plan_f59c6c3a-e588-4719-8503-e554f2631698.json
+277_Limitations of Human Language and Programming_2b66a37f-481c-4816-a979-3f8866a5621e.json
+278_Fixing Excel File Processing in Download Page_722eafc9-173c-4172-938f-07ae8955da9c.json
+279_Philosophical Science Fiction Analysis_545e9fff-8489-4c57-85ce-2122289f15e6.json
+280_Improving VBA to Python translation_9449d84d-131f-4224-b6e5-b151a39d974f.json
+281_Improving Excel File Processing App with Tkinter_d2aba4c1-3a0a-4a45-847f-2bf03416fa08.json
+282_Improving VBA to Python Conversion_ Addressing Lim_c6531024-7f0b-4172-a2f2-5520c15000b0.json
+283_Reviewing Discrepancies in Missing Chapters and Ch_9fe22932-26c9-4bc5-898f-7f76fd1d31d8.json
+284_Clarifying Requirements for Streamlit Web App_c33a7e86-1a0f-4140-b78e-20801b388887.json
+285_Houston, We Have a Problem_0064a046-df5d-413b-84fa-23ea27cc7930.json
+286_Converting JavaScript_HTML functions to Streamlit _74241dc7-1a29-444f-835d-d6c5fa71d258.json
+287_Comprehensive Novel Manuscript Review_f894c99b-f3ed-436e-9a03-9c8d68311c38.json
+288_Resolving Script Loading Issues_bd89980c-f240-474d-b9da-3744d621b0bf.json
+289_Clarifying Project Goals and Coding Approach_274d1673-85cd-49cf-9975-490752b1f288.json
+290_Y EL 10 TE VES CAPAZ, CLAUDIA!..._e3cca8d6-9f10-441f-896b-7cab41fb7ad6.json
+292_Continuing the First Chapter of _Parallelisms for _16153c30-18ab-4461-802a-d21f62be3a15.json
+293_How to Install DeepSeek-Coder AI Assistant Locally_300c56f9-1837-402d-8d81-96a9af4a8e04.json
+294_Fixing _crearTablaActividades is not defined_ Erro_6735513c-d65d-4f2c-a5f9-03575f58e329.json
+295_Analyzing Excel VBA Macros_311887e7-6890-4e52-8858-69035544d5cb.json
+299_Modular VBA Macros for Driver Activity Analysis_3d1f6248-2f50-41c4-adbc-98331bdadd52.json
+300_Rebranding Web Dashboard from VDO to TACOLU_82b10527-55a1-498c-a54c-bff3375a5a5d.json
+301_Excel table formatting and calculations_7b514cb6-b973-4b49-8922-981fbf3e0513.json
+302_Improving Daily Summary Module in TACOLU System_0bb02a63-34e3-49d9-be55-870e9a6149f8.json
+304_Code Analyzer v2.0 Artifacts_ea5c86b5-7778-4a58-a6fb-350d38827eaf.json
+305_Continuing Photography Group Project_7a19d32f-0e4f-4fa3-9680-6575607ef914.json
+307_Script to Locate Transport Collective Agreements b_264ed32d-8016-439c-a3f6-ec415313f13d.json
+308_JavaScript-based Excel Data Processing_67bb1a1b-577b-4620-83eb-fe064fb3b149.json

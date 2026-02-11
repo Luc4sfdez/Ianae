@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IANAE Dashboard - Orchestra</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .status-pulse { animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .tab-active { border-bottom: 2px solid #60a5fa; color: #60a5fa; }
+        .tab-inactive { border-bottom: 2px solid transparent; color: #9ca3af; }
+        .tab-inactive:hover { color: #d1d5db; }
+        #network-svg { width: 100%; height: 500px; background: #0f172a; border-radius: 0.5rem; }
+        #network-svg .node-label { font-size: 10px; fill: #e2e8f0; pointer-events: none; }
+        #network-svg .link { stroke-opacity: 0.4; }
+        .ws-connected { color: #4ade80; }
+        .ws-disconnected { color: #f87171; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-blue-400">IANAE DASHBOARD</h1>
+                    <p class="text-sm text-gray-400">Orchestra Control Panel v2.0</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="ws-indicator" class="flex items-center space-x-2">
+                        <div id="ws-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span id="ws-status" class="text-xs text-gray-400">WebSocket: desconectado</span>
+                    </div>
+                    <div id="update-indicator" class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full status-pulse"></div>
+                        <span class="text-xs text-gray-400">Polling</span>
+                    </div>
+                    <div id="last-update" class="text-xs text-gray-500"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <div class="container mx-auto px-4 pt-4">
+        <div class="flex space-x-6 border-b border-gray-700">
+            <button onclick="switchTab('orchestra')" id="tab-orchestra" class="pb-2 text-sm font-medium tab-active">Orchestra</button>
+            <button onclick="switchTab('network')" id="tab-network" class="pb-2 text-sm font-medium tab-inactive">Red Conceptual</button>
+            <button onclick="switchTab('ingestion')" id="tab-ingestion" class="pb-2 text-sm font-medium tab-inactive">Ingesta</button>
+            <button onclick="switchTab('experiments')" id="tab-experiments" class="pb-2 text-sm font-medium tab-inactive">Experimentos</button>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: Orchestra ==================== -->
+    <div id="panel-orchestra" class="tab-panel">
+        <!-- Metricas Clave -->
+        <div class="container mx-auto px-4 py-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div class="text-xs text-gray-400 mb-1">Efectividad Daemon</div>
+                    <div id="metric-efectividad" class="text-2xl font-bold text-blue-400">--</div>
+                    <div class="text-xs text-gray-500 mt-1">Ordenes utiles</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div class="text-xs text-gray-400 mb-1">Autonomia Real</div>
+                    <div id="metric-autonomia" class="text-2xl font-bold text-green-400">--</div>
+                    <div class="text-xs text-gray-500 mt-1">Sin escalados</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div class="text-xs text-gray-400 mb-1">Tasa Completacion</div>
+                    <div id="metric-completacion" class="text-2xl font-bold text-purple-400">--</div>
+                    <div class="text-xs text-gray-500 mt-1">Tareas finalizadas</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div class="text-xs text-gray-400 mb-1">Throughput</div>
+                    <div id="metric-throughput" class="text-2xl font-bold text-yellow-400">--</div>
+                    <div class="text-xs text-gray-500 mt-1">Reportes publicados</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas del Sistema -->
+        <div class="container mx-auto px-4">
+            <div id="alerts-container" class="hidden">
+                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-gray-300">Alertas del Sistema</h3>
+                        <span id="alerts-count" class="text-xs px-2 py-1 rounded bg-red-600 text-white">0</span>
+                    </div>
+                    <div id="alerts-list" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Estado del Sistema -->
+                <div class="lg:col-span-1">
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4 text-blue-300">Estado del Sistema</h2>
+                        <div id="services-status" class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-300">docs-service</span>
+                                <div class="flex items-center space-x-2">
+                                    <span id="docs-status-emoji" class="text-lg"></span>
+                                    <span id="docs-status-text" class="text-xs text-gray-400">Checking...</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-300">daemon</span>
+                                <div class="flex items-center space-x-2">
+                                    <span id="daemon-status-emoji" class="text-lg"></span>
+                                    <span id="daemon-status-text" class="text-xs text-gray-400">Checking...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 pt-6 border-t border-gray-700">
+                            <h3 class="text-sm font-semibold mb-3 text-gray-400">API Anthropic</h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-gray-400">Llamadas hoy:</span>
+                                    <span id="api-calls-today" class="text-sm font-mono text-blue-400">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-gray-400">Limite diario:</span>
+                                    <span class="text-sm font-mono text-gray-500">100</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-gray-400">Costo estimado:</span>
+                                    <span id="api-cost" class="text-sm font-mono text-green-400">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <div class="w-full bg-gray-700 rounded-full h-2">
+                                    <div id="api-progress" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 mt-6">
+                        <h2 class="text-lg font-semibold mb-4 text-blue-300">Workers</h2>
+                        <div id="workers-list" class="space-y-4">
+                            <div class="text-xs text-gray-500 text-center">Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Documents & Activity -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-blue-300">Documentos</h2>
+                            <div class="flex space-x-2">
+                                <select id="filter-category" class="bg-gray-700 text-sm text-gray-300 rounded px-3 py-1 border border-gray-600">
+                                    <option value="">Todas categorias</option>
+                                    <option value="especificaciones">Especificaciones</option>
+                                    <option value="reportes">Reportes</option>
+                                    <option value="dudas">Dudas</option>
+                                    <option value="decisiones">Decisiones</option>
+                                </select>
+                                <select id="filter-worker" class="bg-gray-700 text-sm text-gray-300 rounded px-3 py-1 border border-gray-600">
+                                    <option value="">Todos workers</option>
+                                    <option value="worker-core">worker-core</option>
+                                    <option value="worker-ui">worker-ui</option>
+                                    <option value="worker-infra">worker-infra</option>
+                                    <option value="worker-nlp">worker-nlp</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="documents-table" class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left border-b border-gray-700 text-gray-400">
+                                        <th class="pb-2">ID</th>
+                                        <th class="pb-2">Titulo</th>
+                                        <th class="pb-2">Autor</th>
+                                        <th class="pb-2">Categoria</th>
+                                        <th class="pb-2">Estado</th>
+                                        <th class="pb-2">Tiempo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="documents-tbody" class="text-gray-300">
+                                    <tr><td colspan="6" class="text-center py-4 text-gray-500">Cargando documentos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4 text-blue-300">Timeline de Actividad</h2>
+                        <div id="activity-timeline" class="space-y-2 max-h-96 overflow-y-auto">
+                            <div class="text-xs text-gray-500 text-center">Cargando actividad...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: Red Conceptual (D3.js) ==================== -->
+    <div id="panel-network" class="tab-panel hidden">
+        <div class="container mx-auto px-4 py-6">
+            <!-- IANAE Metricas -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                    <div class="text-xs text-gray-400">Conceptos</div>
+                    <div id="ianae-conceptos" class="text-xl font-bold text-blue-400">--</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                    <div class="text-xs text-gray-400">Relaciones</div>
+                    <div id="ianae-relaciones" class="text-xl font-bold text-green-400">--</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                    <div class="text-xs text-gray-400">Ciclos</div>
+                    <div id="ianae-ciclos" class="text-xl font-bold text-purple-400">--</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                    <div class="text-xs text-gray-400">Auto-mods</div>
+                    <div id="ianae-automods" class="text-xl font-bold text-yellow-400">--</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                    <div class="text-xs text-gray-400">Emergencias</div>
+                    <div id="ianae-emergencias" class="text-xl font-bold text-red-400">--</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Network Visualization -->
+                <div class="lg:col-span-3">
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-blue-300">Red de Conceptos IANAE</h2>
+                            <div class="flex space-x-2">
+                                <button onclick="resetNetworkZoom()" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded">Reset Zoom</button>
+                                <button onclick="loadNetwork()" class="text-xs bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded">Recargar</button>
+                            </div>
+                        </div>
+                        <svg id="network-svg"></svg>
+                    </div>
+                </div>
+                <!-- Leyenda y detalles -->
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-sm font-semibold mb-3 text-gray-300">Categorias</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#FF6B6B"></div><span class="text-xs text-gray-400">Tecnologias</span></div>
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#4ECDC4"></div><span class="text-xs text-gray-400">Proyectos</span></div>
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#45B7D1"></div><span class="text-xs text-gray-400">Lucas Personal</span></div>
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#96CEB4"></div><span class="text-xs text-gray-400">Conceptos IANAE</span></div>
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#FFEAA7"></div><span class="text-xs text-gray-400">Herramientas</span></div>
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#DDA0DD"></div><span class="text-xs text-gray-400">Emergentes</span></div>
+                            <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full" style="background:#F472B6"></div><span class="text-xs text-gray-400">NLP Extraidos</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-sm font-semibold mb-3 text-gray-300">Nodo Seleccionado</h3>
+                        <div id="node-detail" class="text-xs text-gray-400">
+                            Haz clic en un nodo para ver detalles
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-sm font-semibold mb-3 text-gray-300">Categorias (conteo)</h3>
+                        <div id="category-counts" class="space-y-1 text-xs text-gray-400">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: Ingesta ==================== -->
+    <div id="panel-ingestion" class="tab-panel hidden">
+        <div class="container mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Input -->
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <h2 class="text-lg font-semibold mb-4 text-blue-300">Ingesta de Texto</h2>
+                    <p class="text-xs text-gray-400 mb-4">Escribe un concepto o texto para activar la red IANAE. El sistema buscara el concepto mas cercano y propagara la activacion.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Texto / Concepto</label>
+                            <textarea id="ingest-text" rows="3" class="w-full bg-gray-700 text-gray-200 rounded px-3 py-2 border border-gray-600 text-sm focus:border-blue-500 focus:outline-none" placeholder="Ej: Python, Tacografos, OpenCV..."></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs text-gray-400 block mb-1">Profundidad (pasos)</label>
+                                <input type="range" id="ingest-depth" min="1" max="6" value="3" class="w-full">
+                                <span id="ingest-depth-val" class="text-xs text-gray-500">3</span>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-400 block mb-1">Temperatura</label>
+                                <input type="range" id="ingest-temp" min="0" max="50" value="20" class="w-full">
+                                <span id="ingest-temp-val" class="text-xs text-gray-500">0.20</span>
+                            </div>
+                        </div>
+                        <button onclick="processText()" id="btn-process" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded text-sm transition-colors">
+                            Activar Red IANAE
+                        </button>
+                    </div>
+                    <!-- Conceptos disponibles -->
+                    <div class="mt-6 pt-4 border-t border-gray-700">
+                        <h3 class="text-sm font-semibold mb-2 text-gray-300">Conceptos disponibles</h3>
+                        <div id="available-concepts" class="flex flex-wrap gap-1">
+                            <span class="text-xs text-gray-500">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Resultado -->
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <h2 class="text-lg font-semibold mb-4 text-blue-300">Resultado Activacion</h2>
+                    <div id="ingest-result" class="space-y-3">
+                        <div class="text-xs text-gray-500 text-center py-8">Ingresa texto para ver resultados de activacion</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Network mini-view after ingestion -->
+            <div id="ingest-network-container" class="hidden mt-6">
+                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <h3 class="text-sm font-semibold mb-3 text-blue-300">Red actualizada tras activacion</h3>
+                    <svg id="ingest-network-svg" style="width:100%;height:400px;background:#0f172a;border-radius:0.5rem;"></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: Experimentos ==================== -->
+    <div id="panel-experiments" class="tab-panel hidden">
+        <div class="container mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Panel de Experimentos -->
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4 text-blue-300">Panel de Control</h2>
+
+                        <!-- Exp 1: Explorar Proyecto -->
+                        <div class="mb-4 p-3 bg-gray-750 rounded border border-gray-600">
+                            <h4 class="text-sm font-semibold text-teal-400 mb-2">Explorar Proyecto</h4>
+                            <select id="exp-proyecto" class="w-full bg-gray-700 text-sm text-gray-300 rounded px-2 py-1 border border-gray-600 mb-2">
+                                <option value="Tacografos">Tacografos</option>
+                                <option value="VBA2Python">VBA2Python</option>
+                                <option value="Hollow_Earth">Hollow_Earth</option>
+                                <option value="RAG_System">RAG_System</option>
+                                <option value="Memory_System">Memory_System</option>
+                            </select>
+                            <button onclick="runExperiment('explorar_proyecto', {proyecto: document.getElementById('exp-proyecto').value})" class="w-full bg-teal-700 hover:bg-teal-600 text-white text-xs py-2 rounded">Explorar</button>
+                        </div>
+
+                        <!-- Exp 2: Convergencia -->
+                        <div class="mb-4 p-3 bg-gray-750 rounded border border-gray-600">
+                            <h4 class="text-sm font-semibold text-cyan-400 mb-2">Convergencia Proyectos</h4>
+                            <div id="conv-checkboxes" class="space-y-1 mb-2">
+                                <label class="flex items-center space-x-2 text-xs text-gray-300">
+                                    <input type="checkbox" value="Tacografos" checked class="conv-check"> <span>Tacografos</span>
+                                </label>
+                                <label class="flex items-center space-x-2 text-xs text-gray-300">
+                                    <input type="checkbox" value="VBA2Python" checked class="conv-check"> <span>VBA2Python</span>
+                                </label>
+                                <label class="flex items-center space-x-2 text-xs text-gray-300">
+                                    <input type="checkbox" value="RAG_System" checked class="conv-check"> <span>RAG_System</span>
+                                </label>
+                                <label class="flex items-center space-x-2 text-xs text-gray-300">
+                                    <input type="checkbox" value="Hollow_Earth" class="conv-check"> <span>Hollow_Earth</span>
+                                </label>
+                                <label class="flex items-center space-x-2 text-xs text-gray-300">
+                                    <input type="checkbox" value="Memory_System" class="conv-check"> <span>Memory_System</span>
+                                </label>
+                            </div>
+                            <button onclick="runConvergencia()" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white text-xs py-2 rounded">Ejecutar Convergencia</button>
+                        </div>
+
+                        <!-- Exp 3: Detectar Emergencias -->
+                        <div class="mb-4 p-3 bg-gray-750 rounded border border-gray-600">
+                            <h4 class="text-sm font-semibold text-orange-400 mb-2">Detectar Emergencias</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-400">Umbral</label>
+                                <input type="range" id="exp-umbral" min="10" max="50" value="30" class="w-full">
+                                <span id="exp-umbral-val" class="text-xs text-gray-500">0.30</span>
+                            </div>
+                            <button onclick="runExperiment('detectar_emergencias', {umbral: parseFloat(document.getElementById('exp-umbral').value)/100})" class="w-full bg-orange-700 hover:bg-orange-600 text-white text-xs py-2 rounded">Detectar</button>
+                        </div>
+
+                        <!-- Exp 4: Ciclo Vital -->
+                        <div class="p-3 bg-gray-750 rounded border border-gray-600">
+                            <h4 class="text-sm font-semibold text-purple-400 mb-2">Ciclo Vital</h4>
+                            <div class="mb-2">
+                                <label class="text-xs text-gray-400">Ciclos</label>
+                                <input type="number" id="exp-ciclos" min="1" max="50" value="10" class="w-full bg-gray-700 text-sm text-gray-300 rounded px-2 py-1 border border-gray-600">
+                            </div>
+                            <button onclick="runExperiment('ciclo_vital', {num_ciclos: parseInt(document.getElementById('exp-ciclos').value)})" class="w-full bg-purple-700 hover:bg-purple-600 text-white text-xs py-2 rounded">Ejecutar Ciclos</button>
+                        </div>
+                    </div>
+
+                    <!-- Snapshots -->
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-4 text-blue-300">Snapshots</h2>
+                        <div class="space-y-2 mb-3">
+                            <input type="text" id="snapshot-name" placeholder="Nombre snapshot" class="w-full bg-gray-700 text-sm text-gray-300 rounded px-3 py-1 border border-gray-600">
+                            <button onclick="saveSnapshot()" class="w-full bg-green-700 hover:bg-green-600 text-white text-xs py-2 rounded">Guardar Snapshot</button>
+                        </div>
+                        <div id="snapshots-list" class="space-y-1 max-h-48 overflow-y-auto">
+                            <div class="text-xs text-gray-500">Cargando snapshots...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultado del experimento -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-blue-300">Resultado Experimento</h2>
+                            <div id="exp-metricas" class="text-xs text-gray-500"></div>
+                        </div>
+                        <div id="experiment-result" class="text-sm text-gray-300 whitespace-pre-wrap font-mono max-h-96 overflow-y-auto">
+                            Selecciona y ejecuta un experimento para ver resultados
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <h3 class="text-sm font-semibold mb-3 text-blue-300">Red tras Experimento</h3>
+                        <svg id="exp-network-svg" style="width:100%;height:400px;background:#0f172a;border-radius:0.5rem;"></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Modal -->
+    <div id="document-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden border border-gray-700">
+            <div class="p-6 border-b border-gray-700 flex items-center justify-between">
+                <h3 id="modal-title" class="text-lg font-semibold text-blue-300">Documento</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-200">X</button>
+            </div>
+            <div id="modal-content" class="p-6 overflow-y-auto max-h-[60vh] text-sm text-gray-300 whitespace-pre-wrap font-mono"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

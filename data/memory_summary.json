@@ -1,0 +1,112 @@
+{
+  "memory_bank_summary": "IANAE tiene acceso a 308 conversaciones con Lucas desde octubre 2024",
+  "main_topics": [
+    "image_processing",
+    "programming",
+    "tacografos",
+    "ancient_civilizations"
+  ],
+  "top_5_conversations": [
+    {
+      "id": "31e9bc4a-7075-4230-9d2a-e50c37bc9e21",
+      "title": "Configuring Docker with GPU Support for AI Frameworks",
+      "created_at": "2025-04-01T08:52:58.222376Z",
+      "message_count": 118,
+      "relevance_score": 1514,
+      "topics": [
+        "programming",
+        "image_processing"
+      ],
+      "keywords": [
+        "configuring",
+        "docker",
+        "with",
+        "gpu",
+        "support",
+        "for",
+        "ai",
+        "frameworks"
+      ]
+    },
+    {
+      "id": "54c8559a-9593-43ae-b7f7-20b7a04c8858",
+      "title": "Setting up RAID 1 on Debian 12 with NVMe drives",
+      "created_at": "2025-03-22T19:27:12.587160Z",
+      "message_count": 62,
+      "relevance_score": 1008,
+      "topics": [],
+      "keywords": [
+        "setting",
+        "up",
+        "raid",
+        "1",
+        "on",
+        "debian",
+        "12",
+        "with",
+        "nvme",
+        "drives"
+      ]
+    },
+    {
+      "id": "3e01b37e-7051-4418-b63b-f31c9013fa2b",
+      "title": "Setting up Ollama AI Server on Ubuntu",
+      "created_at": "2025-03-22T09:32:55.257103Z",
+      "message_count": 78,
+      "relevance_score": 824,
+      "topics": [
+        "programming",
+        "image_processing"
+      ],
+      "keywords": [
+        "setting",
+        "up",
+        "ollama",
+        "ai",
+        "server",
+        "on",
+        "ubuntu"
+      ]
+    },
+    {
+      "id": "94856743-d309-4b7d-97d8-0d2d76a2afa2",
+      "title": "Detecting Largest Circle and Finding Center",
+      "created_at": "2024-12-06T09:58:51.381928Z",
+      "message_count": 62,
+      "relevance_score": 684,
+      "topics": [
+        "tacografos",
+        "image_processing"
+      ],
+      "keywords": [
+        "detecting",
+        "largest",
+        "circle",
+        "and",
+        "finding",
+        "center"
+      ]
+    },
+    {
+      "id": "302c9350-6365-4ee0-beb1-61a9ebb0ea96",
+      "title": "Review Ubuntu Server Configuration and Backup",
+      "created_at": "2025-04-01T05:20:50.230046Z",
+      "message_count": 126,
+      "relevance_score": 560,
+      "topics": [
+        "programming",
+        "image_processing"
+      ],
+      "keywords": [
+        "review",
+        "ubuntu",
+        "server",
+        "configuration",
+        "and",
+        "backup"
+      ]
+    }
+  ],
+  "total_messages_available": 12201,
+  "memory_access_instructions": "Para acceder a una conversación específica, usar: load_conversation(id) o search_conversations(keyword)"
+}

@@ -1,0 +1,9 @@
+{
+  "title": "ORDEN: Investigar y documentar integracion NLP para IANAE",
+  "content": "# Investigacion NLP para IANAE\n\n## Contexto\nIANAE necesita procesar texto natural y convertirlo en redes de conceptos difusos. Esta es una tarea de investigacion y documentacion antes de implementar.\n\n## Tareas\n\n### 1. Investigar Bibliotecas NLP\n- spaCy vs NLTK vs transformers\n- sentence-transformers para embeddings\n- Modelos en español\n- Requisitos de hardware/memoria\n\n### 2. Diseñar Pipeline\n```\nTexto → Tokenizacion → Extraccion Conceptos → Embeddings → Red IANAE\n```\n\n- Como identificar conceptos clave\n- Como calcular relaciones entre conceptos\n- Como mapear a estructura de nucleo.py\n\n### 3. Prototipo Minimo\n- Script simple que tome un parrafo\n- Extraiga 3-5 conceptos principales\n- Cree una mini-red de conceptos\n- Visualice resultado\n\n### 4. Documentacion\n- README con arquitectura propuesta\n- Ejemplos de input/output\n- Estimacion de recursos\n- Roadmap de implementacion (3 fases)\n\n## Criterio de Hecho\n- Documento tecnico con arquitectura NLP propuesta\n- Prototipo funcional (aunque basico)\n- Comparacion de bibliotecas con pros/contras\n- Plan de implementacion detallado\n\n## Notas\n- Esta es tarea de investigacion, no implementacion completa\n- Objetivo: tener plan claro antes de comenzar desarrollo\n- Documentar decisiones de diseño\n\n## Tiempo Estimado\n3-4 horas\n\n## Prioridad\nMEDIA - worker-core debe terminar numpy primero",
+  "category": "especificaciones",
+  "author": "lucas",
+  "tags": ["worker-nlp", "investigacion", "fase-c"],
+  "priority": "media",
+  "status": "completed"
+}

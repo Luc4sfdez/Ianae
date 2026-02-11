@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+COPY pyproject.toml .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir pytest pytest-cov pytest-timeout
+
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY config/ ./config/
+
+CMD ["pytest", "tests/", "--cov=src/core", "--cov-report=term-missing", "-v"]

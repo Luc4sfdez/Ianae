@@ -1,0 +1,16 @@
+{
+  "memory_path": "C:/IANAE/memory/conversations_database/",
+  "lm_studio_url": "http://localhost:1234",
+  "rag_server_port": 5000,
+  "max_conversations": 3,
+  "max_messages_per_conversation": 5,
+  "keywords_weight": {
+    "tacografo": 10,
+    "python": 8,
+    "lucas": 7,
+    "opencv": 9,
+    "excel": 6,
+    "vba": 6,
+    "docker": 5,
+  }
+}

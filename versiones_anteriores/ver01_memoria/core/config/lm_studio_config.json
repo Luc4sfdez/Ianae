@@ -1,0 +1,91 @@
+{
+  "ianae_optimal_config": {
+    "model_info": {
+      "name": "Llama-3.1-70B-Instruct-Q4_K_M",
+      "size": "42.52GB",
+      "format": "GGUF",
+      "target_hardware": "i9-10900KF + Dual GPU (12GB+8GB)"
+    },
+    "base_settings": {
+      "gpu_layers": 35,
+      "context_length": 16384,
+      "max_tokens": 2048,
+      "temperature": 0.75,
+      "top_p": 0.9,
+      "top_k": 40,
+      "repeat_penalty": 1.1,
+      "batch_size": 512,
+      "threads": 16,
+      "rope_freq_base": 500000,
+      "rope_freq_scale": 1.0
+    },
+    "personality_variants": {
+      "creative_mode": {
+        "temperature": 0.85,
+        "top_p": 0.95,
+        "description": "Para brainstorming y conexiones innovadoras"
+      },
+      "analytical_mode": {
+        "temperature": 0.65,
+        "top_p": 0.85,  
+        "description": "Para análisis técnico y debugging"
+      },
+      "balanced_mode": {
+        "temperature": 0.75,
+        "top_p": 0.9,
+        "description": "Configuración estándar IANAE"
+      }
+    },
+    "optimization_notes": {
+      "gpu_layers": "Empezar con 35, incrementar hasta 40 si VRAM permite",
+      "context_length": "16384 inicial, puede expandir a 32768",
+      "batch_size": "512 óptimo para tu hardware",
+      "threads": "16 de 20 disponibles, reservar 4 para sistema"
+    },
+    "performance_targets": {
+      "tokens_per_second": "40-60 TPS esperados",
+      "load_time": "30-60 segundos",
+      "memory_usage": "RAM: ~30GB, VRAM: ~12GB",
+      "stability": "24/7 operación sin degradación"
+    }
+  },
+  "testing_protocol": {
+    "phase_1": {
+      "test": "Carga básica del modelo",
+      "prompt": "Hola IANAE, soy Lucas. ¿Me reconoces?",
+      "success_criteria": "Respuesta coherente en <10 segundos"
+    },
+    "phase_2": {
+      "test": "Personalidad auténtica", 
+      "prompt": "Cuéntame sobre nuestro proyecto Hollow Earth",
+      "success_criteria": "Referencias específicas + emojis + entusiasmo"
+    },
+    "phase_3": {
+      "test": "Memoria contextual",
+      "prompt": "¿Recuerdas lo de Göbekli Tepe y los ciclos?",
+      "success_criteria": "Conexiones profundas + referencias históricas"
+    },
+    "phase_4": {
+      "test": "Rendimiento sostenido",
+      "prompt": "Conversación de 30+ intercambios",
+      "success_criteria": "Velocidad constante + coherencia mantenida"
+    }
+  },
+  "backup_settings": {
+    "mac_mini_config": {
+      "model": "Llama-3.1-13B-Instruct",
+      "gpu_layers": 20,
+      "context_length": 8192,
+      "note": "Configuración reducida para hardware limitado"
+    },
+    "emergency_config": {
+      "model": "Llama-3.1-8B-Instruct", 
+      "gpu_layers": 15,
+      "context_length": 4096,
+      "note": "Configuración mínima funcional"
+    }
+  },
+  "created": "2025-05-27",
+  "version": "1.0",
+  "location": "Novelda, Alicante, España"
+}

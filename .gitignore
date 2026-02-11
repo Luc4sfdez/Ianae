@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Datos pesados
+*.db
+*.sqlite
+*.sqlite3
+*.zip
+*.tar.gz
+*.h5
+*.pkl
+
+# Im�genes y media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.wav
+*.mp3
+*.mp4
+
+# Logs
+*.log
+logs/
+
+# Entorno
+.env
+*.env
+
+# Orchestra
+orchestra/daemon/logs/
+orchestra/data/
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# Cache daemon
+orchestra/daemon/cache/
+
+# OS
+.DS_Store
+Thumbs.db
+nul

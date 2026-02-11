@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ianae"
+version = "0.1.0"
+description = "Inteligencia Adaptativa No Algoritmica Emergente"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.24.0",
+    "matplotlib>=3.5.0",
+    "networkx>=2.8.0",
+]
+
+[project.optional-dependencies]
+orchestra = [
+    "anthropic>=0.21.0",
+    "requests>=2.31.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "python-multipart>=0.0.6",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "benchmark: marks benchmark tests",
+]
+
+[tool.coverage.run]
+omit = ["*/test_*", "*/conftest*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "if __name__",
+    "plt\\.show",
+    "plt\\.figure",
+    "print\\(",
+    "def visualizar",
+]
+
+# Nota: nucleo.py debe mantener >80% cobertura.
+# fail_under aplica al total del directorio; verificar per-file en CI.
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "sistema": "IANAE - Bibliotecario Personal",
+  "conceptos_file": "conceptos_lucas_poblado.json",
+  "llm_endpoint": "http://localhost:1234/v1/chat/completions",
+  "puerto_web": 8000,
+  "directorio_resumenes": "resumenes_tematicos_v6",
+  "umbral_similitud": 0.1,
+  "max_conceptos_busqueda": 8
+}

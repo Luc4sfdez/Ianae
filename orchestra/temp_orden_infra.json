@@ -1,0 +1,9 @@
+{
+  "title": "ORDEN: Crear suite de tests para nucleo.py",
+  "content": "# Suite de Tests para nucleo.py\n\n## Contexto\nEl archivo src/core/nucleo.py implementa el sistema de conceptos difusos de IANAE. Necesitamos tests completos antes de refactorizar a numpy.\n\n## Tareas\n\n### 1. Tests Unitarios para Propagacion\n- Test de propagacion basica con 2-3 conceptos\n- Test de propagacion con decay\n- Test de limites (umbral, max_depth)\n- Test de ciclos en la red\n\n### 2. Tests de Auto-Modificacion\n- Test de fortalecimiento de conexiones\n- Test de debilitamiento de conexiones\n- Test de creacion de nuevas conexiones\n- Test de limites de modificacion\n\n### 3. Tests de Serializacion\n- Test de guardar red a JSON\n- Test de cargar red desde JSON\n- Test de persistencia completa\n- Test de compatibilidad de versiones\n\n### 4. Benchmarks de Rendimiento\n- Benchmark de propagacion (100, 1000, 10000 conceptos)\n- Benchmark de modificacion\n- Benchmark de serializacion\n- Comparacion con implementacion actual\n\n## Estructura Esperada\ntests/\n├── test_nucleo_propagacion.py\n├── test_nucleo_modificacion.py\n├── test_nucleo_serializacion.py\n└── benchmark_nucleo.py\n\n## Criterio de Hecho\n- Al menos 20 tests unitarios\n- Cobertura >80% de nucleo.py\n- Todos los tests pasan\n- Benchmarks documentan rendimiento actual\n- README en tests/ con instrucciones\n\n## Prioridad\nALTA - Estos tests son prerequisito para la refactorizacion numpy de worker-core.\n\n## Dependencias\nNinguna - puede empezar inmediatamente.\n\n## Tiempo Estimado\n4-6 horas",
+  "category": "especificaciones",
+  "author": "lucas",
+  "tags": ["worker-infra", "tests", "fase-c"],
+  "priority": "alta",
+  "status": "pending"
+}

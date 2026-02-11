@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  ianae:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ianae-data:/app/data
+    environment:
+      - IANAE_ENV=production
+
+  docs-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.docs-service
+    ports:
+      - "25500:25500"
+    volumes:
+      - docs-data:/app/data
+    environment:
+      - DOCS_DB_PATH=/app/data/docs.db
+
+  tests:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tests
+    profiles:
+      - test
+
+volumes:
+  ianae-data:
+  docs-data:
