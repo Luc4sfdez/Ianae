@@ -1,0 +1,84 @@
+# orchestra.yaml — Configuración IANAE
+
+project:
+  name: "IANAE"
+  description: "Inteligencia Adaptativa No Algorítmica Emergente"
+  repo: "https://github.com/Luc4sfdez/Ianae"
+
+docs_service:
+  port: 25500
+  data_dir: "./orchestra/docs"
+  db_path: "./orchestra/data/docs.db"
+
+daemon:
+  check_interval: 300                    # Segundos entre polls (5 min)
+  max_tokens: 2048
+  system_prompt: "orchestra/daemon/prompts/arquitecto_system.md"
+  log_file: "orchestra/daemon/logs/arquitecto.log"
+
+  # Proveedores LLM (orden = prioridad, mas barato primero)
+  providers:
+    - name: deepseek
+      model: deepseek-chat
+    - name: qwen
+      model: qwen-plus
+    - name: anthropic
+      model: claude-sonnet-4-20250514
+
+  # Filtros para no gastar API innecesariamente
+  ignore_types: ["info", "arranque"]
+  ignore_authors: ["arquitecto-daemon"]
+
+  # Control de concurrencia
+  max_concurrent_workers: 2              # Maximo 2 workers activos
+
+  # Limite de coste diario (seguridad)
+  max_daily_api_calls: 50               # Despues de esto, solo notifica
+
+  # Cache de respuestas
+  cache_ttl_seconds: 3600
+  cache_max_entries: 500
+
+watchdog:
+  check_interval: 30                     # Cada 30 segundos
+  show_full_content: true                # Mostrar contenido completo de la orden
+
+workers:
+  - name: "worker-core"
+    scope: "APP/nucleo.py, APP/emergente.py"
+    branch: "worker/core"
+    prompt: "orchestra/daemon/prompts/worker_core.md"
+    priority: 1
+    depends_on: []
+
+  - name: "worker-nlp"
+    scope: "APP/nlp/, APP/integrations/"
+    branch: "worker/nlp"
+    prompt: "orchestra/daemon/prompts/worker_nlp.md"
+    priority: 2
+    depends_on: ["worker-core"]
+
+  - name: "worker-infra"
+    scope: "tests/, docker/, config/, pyproject.toml"
+    branch: "worker/infra"
+    prompt: "orchestra/daemon/prompts/worker_infra.md"
+    priority: 3
+    depends_on: []
+
+  - name: "worker-ui"
+    scope: "APP/ui/, APP/api/"
+    branch: "worker/ui"
+    prompt: "orchestra/daemon/prompts/worker_ui.md"
+    priority: 4
+    depends_on: ["worker-core", "worker-infra"]
+
+protected_files:
+  - "orchestra/**"
+  - "docs/**"
+  - ".gitignore"
+  - "LICENSE"
+
+standards:
+  commit_prefixes: ["FEAT", "FIX", "REFACTOR", "TEST", "DOCS", "INFRA"]
+  language: "es"
+  branch_flow: "main → dev → worker/*"
