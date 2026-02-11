@@ -35,7 +35,7 @@ ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 MAX_TOKENS = 2048
 
 # Daemon
-CHECK_INTERVAL = 300
+CHECK_INTERVAL = 10
 LOG_FILE = os.path.join(os.path.dirname(__file__), "logs", "arquitecto.log")
 SYSTEM_PROMPT_FILE = os.path.join(os.path.dirname(__file__), "prompts", "arquitecto_system.md")
 
@@ -60,3 +60,28 @@ WORKER_DEPENDENCIES = {
 # Cache de respuestas
 CACHE_TTL_SECONDS = 3600
 CACHE_MAX_ENTRIES = 500
+
+# Worker executor
+WORKER_CHECK_INTERVAL = 15  # segundos entre polls
+WORKER_MAX_TOKENS = 4096    # tokens para generar codigo
+WORKER_MAX_FILES = 5        # max archivos por orden
+
+# Scopes de workers (que archivos puede tocar cada uno)
+WORKER_SCOPES = {
+    "worker-core": {
+        "paths": ["src/core/", "tests/core/"],
+        "test_cmd": "python -m pytest tests/core/ -q",
+    },
+    "worker-infra": {
+        "paths": ["tests/", "docker/", "config/", "pyproject.toml"],
+        "test_cmd": "python -m pytest tests/ -q",
+    },
+    "worker-nlp": {
+        "paths": ["src/nlp/", "tests/"],
+        "test_cmd": "python -m pytest tests/ -q",
+    },
+    "worker-ui": {
+        "paths": ["src/ui/", "src/web/"],
+        "test_cmd": "python -m pytest tests/ -q",
+    },
+}
