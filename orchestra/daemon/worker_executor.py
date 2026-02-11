@@ -178,7 +178,7 @@ class WorkerExecutor:
             full_path = self.project_root / scope_path
             if full_path.is_file():
                 try:
-                    content = full_path.read_text(encoding="utf-8")
+                    content = full_path.read_text(encoding="utf-8", errors="replace")
                     context_parts.append(
                         f"### FILE: {scope_path}\n```\n{content}\n```"
                     )
@@ -189,7 +189,7 @@ class WorkerExecutor:
                 for py_file in sorted(full_path.rglob("*.py")):
                     rel = py_file.relative_to(self.project_root)
                     try:
-                        content = py_file.read_text(encoding="utf-8")
+                        content = py_file.read_text(encoding="utf-8", errors="replace")
                         context_parts.append(
                             f"### FILE: {rel}\n```python\n{content}\n```"
                         )

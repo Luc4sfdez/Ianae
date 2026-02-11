@@ -1,1 +1,1 @@
-"""IANAE — src/core"""
+"""IANAE - src/core"""
