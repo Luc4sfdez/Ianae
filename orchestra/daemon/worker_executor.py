@@ -131,6 +131,9 @@ class WorkerExecutor:
         # Backup para rollback
         self._backups: Dict[str, bytes] = {}
 
+        # IDs de ordenes ya procesadas (evita loop infinito)
+        self._processed_ids: set = set()
+
         logger.info(
             f"WorkerExecutor inicializado",
             worker=worker_name,
@@ -482,16 +485,24 @@ class WorkerExecutor:
                 pendientes = self.docs_client.get_worker_pendientes(self.worker_name)
 
                 if pendientes:
-                    # Tomar la primera orden pendiente
-                    orden = pendientes[0]
-                    doc_id = orden.get("id")
+                    # Buscar primera orden no procesada
+                    orden = None
+                    for p in pendientes:
+                        if p.get("id") not in self._processed_ids:
+                            orden = p
+                            break
 
-                    # Obtener documento completo
-                    doc_full = self.docs_client.get_doc(doc_id)
-                    if doc_full:
-                        self.execute_order(doc_full)
+                    if orden:
+                        doc_id = orden.get("id")
+                        doc_full = self.docs_client.get_doc(doc_id)
+                        if doc_full:
+                            self.execute_order(doc_full)
+                            self._processed_ids.add(doc_id)
+                        else:
+                            logger.warning(f"No se pudo leer orden #{doc_id}")
+                            self._processed_ids.add(doc_id)
                     else:
-                        logger.warning(f"No se pudo leer orden #{doc_id}")
+                        print(".", end="", flush=True)
                 else:
                     print(".", end="", flush=True)
 
