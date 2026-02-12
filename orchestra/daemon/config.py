@@ -68,7 +68,14 @@ WORKER_MAX_FILES = 5        # max archivos por orden
 WORKER_MAX_RETRIES = 2      # reintentos por orden antes de marcar blocked
 WORKER_RETRY_DELAY = 10     # segundos entre reintentos
 WORKER_CHUNK_PLAN_TOKENS = 2048    # tokens para planning call (chunked generation)
-WORKER_CHUNK_FILE_TOKENS = 6000    # tokens para cada file generation call (chunked)
+WORKER_CHUNK_FILE_TOKENS = 6000    # tokens para cada file generation call (chunked, DeepSeek)
+WORKER_ANTHROPIC_FILE_TOKENS = 16000  # tokens para file generation con Anthropic (mas capacidad)
+
+# Seleccion dinamica de provider:
+# - Tareas simples (1-2 archivos nuevos): DeepSeek (barato, 6000 tokens/archivo)
+# - Tareas complejas (3+ archivos, o modificar archivos grandes): Anthropic (16000 tokens/archivo)
+WORKER_COMPLEXITY_THRESHOLD_FILES = 3  # >= este numero de archivos = complejo
+WORKER_LARGE_FILE_LINES = 200          # archivos con mas lineas = complejos
 
 # Scopes de workers (que archivos puede tocar cada uno)
 WORKER_SCOPES = {

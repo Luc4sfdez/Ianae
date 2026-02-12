@@ -202,6 +202,13 @@ class ProviderChain:
         """Lista de nombres de providers disponibles (en orden de prioridad)."""
         return [p.name for p in self.providers]
 
+    def get_provider(self, name: str) -> Optional[LLMProvider]:
+        """Obtener un provider especifico por nombre, o None si no esta disponible."""
+        for p in self.providers:
+            if p.name == name:
+                return p
+        return None
+
     def chat(self, system: str, messages: List[Dict], max_tokens: int) -> LLMResponse:
         """
         Llama al LLM usando la cadena de fallback.
@@ -234,3 +241,36 @@ class ProviderChain:
         raise RuntimeError(
             f"Todos los providers fallaron. Ultimo error: {last_error}"
         ) from last_error
+
+    def chat_with_preferred(self, preferred: str, system: str,
+                            messages: List[Dict], max_tokens: int) -> LLMResponse:
+        """
+        Llama al LLM intentando un provider preferido primero.
+
+        Si el preferido esta disponible, lo intenta primero. Si falla o no
+        existe, usa la cadena de fallback normal.
+
+        Args:
+            preferred: Nombre del provider preferido (ej: 'anthropic', 'deepseek').
+        """
+        preferred_provider = self.get_provider(preferred)
+
+        if preferred_provider:
+            try:
+                start = time.time()
+                response = preferred_provider.chat(system, messages, max_tokens)
+                elapsed = time.time() - start
+                logger.info(
+                    f"LLM response via {preferred_provider.name} (preferred) "
+                    f"({response.input_tokens}in/{response.output_tokens}out) "
+                    f"en {elapsed:.1f}s"
+                )
+                return response
+            except Exception as e:
+                logger.warning(
+                    f"Provider preferido {preferred} fallo: {type(e).__name__}: {e}, "
+                    "cayendo a cadena de fallback"
+                )
+
+        # Fallback a la cadena normal (excluyendo el preferido si ya fallo)
+        return self.chat(system, messages, max_tokens)

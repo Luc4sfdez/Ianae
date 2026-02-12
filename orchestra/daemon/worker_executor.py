@@ -42,6 +42,9 @@ from config import (
     WORKER_SCOPES,
     WORKER_CHUNK_PLAN_TOKENS,
     WORKER_CHUNK_FILE_TOKENS,
+    WORKER_ANTHROPIC_FILE_TOKENS,
+    WORKER_COMPLEXITY_THRESHOLD_FILES,
+    WORKER_LARGE_FILE_LINES,
 )
 
 logger = get_logger("worker_executor")
@@ -615,21 +618,75 @@ class WorkerExecutor:
         """Generar bloque JSON de costos acumulados de multiples llamadas LLM."""
         if not responses:
             return ""
+
+        # Calcular costo por provider (pueden ser mixtos: planning deepseek + files anthropic)
+        total_cost = 0.0
+        by_provider = {}
+        for r in responses:
+            cost = self._estimate_cost(r.provider, r.input_tokens, r.output_tokens)
+            total_cost += cost
+            if r.provider not in by_provider:
+                by_provider[r.provider] = {"input": 0, "output": 0, "calls": 0}
+            by_provider[r.provider]["input"] += r.input_tokens
+            by_provider[r.provider]["output"] += r.output_tokens
+            by_provider[r.provider]["calls"] += 1
+
         total_input = sum(r.input_tokens for r in responses)
         total_output = sum(r.output_tokens for r in responses)
-        # Usar provider de la primera respuesta como referencia
-        provider = responses[0].provider
-        model = responses[0].model
-        cost_usd = self._estimate_cost(provider, total_input, total_output)
+        providers_used = list(by_provider.keys())
+
         data = {
-            "provider": provider,
-            "model": model,
+            "providers": providers_used,
             "input_tokens": total_input,
             "output_tokens": total_output,
-            "cost_usd": cost_usd,
+            "cost_usd": round(total_cost, 6),
             "chunked_calls": len(responses),
+            "by_provider": by_provider,
         }
         return f"\n\n<!-- COST_DATA: {json.dumps(data)} -->"
+
+    def _assess_complexity(self, planned_files: List[Tuple[str, str]]) -> Tuple[str, int]:
+        """
+        Evaluar complejidad de la tarea y seleccionar provider + token limit.
+
+        Criterios para usar Anthropic (complejo):
+        - 3+ archivos en el plan
+        - Algun archivo existente del plan tiene >200 lineas (archivo grande)
+
+        Returns:
+            (preferred_provider, file_max_tokens)
+            ej: ('deepseek', 6000) o ('anthropic', 16000)
+        """
+        num_files = len(planned_files)
+
+        # Criterio 1: muchos archivos
+        if num_files >= WORKER_COMPLEXITY_THRESHOLD_FILES:
+            logger.info(
+                f"Complejidad ALTA: {num_files} archivos >= umbral "
+                f"{WORKER_COMPLEXITY_THRESHOLD_FILES} -> anthropic"
+            )
+            return ("anthropic", WORKER_ANTHROPIC_FILE_TOKENS)
+
+        # Criterio 2: algun archivo existente es grande
+        for file_path, _ in planned_files:
+            full_path = self.project_root / file_path
+            if full_path.exists():
+                try:
+                    line_count = len(
+                        full_path.read_text(encoding="utf-8", errors="replace").split("\n")
+                    )
+                    if line_count > WORKER_LARGE_FILE_LINES:
+                        logger.info(
+                            f"Complejidad ALTA: {file_path} tiene {line_count} lineas "
+                            f"> umbral {WORKER_LARGE_FILE_LINES} -> anthropic"
+                        )
+                        return ("anthropic", WORKER_ANTHROPIC_FILE_TOKENS)
+                except Exception:
+                    pass
+
+        # Simple: usar DeepSeek (barato)
+        logger.info(f"Complejidad BAJA: {num_files} archivos, todos pequenos -> deepseek")
+        return ("deepseek", WORKER_CHUNK_FILE_TOKENS)
 
     def _chunked_generate(self, orden: Dict, context: str,
                           previous_test_output: str = "") -> Tuple[List[Dict], str, list]:
@@ -738,6 +795,13 @@ class WorkerExecutor:
             + ", ".join(p for p, _ in planned_files)
         )
 
+        # --- PASO 1.5: Evaluar complejidad y seleccionar provider ---
+        preferred_provider, file_max_tokens = self._assess_complexity(planned_files)
+        logger.info(
+            f"Chunked: provider seleccionado={preferred_provider}, "
+            f"file_max_tokens={file_max_tokens}"
+        )
+
         # --- PASO 2: Per-file calls ---
         generated_files = []
         for file_path, file_desc in planned_files:
@@ -754,10 +818,11 @@ class WorkerExecutor:
             )
 
             logger.info(f"Chunked: generando archivo {file_path}")
-            file_response = self.llm_chain.chat(
+            file_response = self.llm_chain.chat_with_preferred(
+                preferred=preferred_provider,
                 system=file_gen_prompt,
                 messages=[{"role": "user", "content": file_user_msg}],
-                max_tokens=WORKER_CHUNK_FILE_TOKENS,
+                max_tokens=file_max_tokens,
             )
             all_responses.append(file_response)
             logger.info(
