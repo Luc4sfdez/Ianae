@@ -20,9 +20,11 @@ from src.api.models import (
     IngestRequest, IngestResponse,
     NetworkResponse, StatsResponse,
     ErrorResponse, HealthResponse,
+    FeedbackRequest, FeedbackResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
+from src.core.aprendizaje_refuerzo import AprendizajeRefuerzo
 
 # --- NLP (optional) ---
 try:
@@ -36,6 +38,7 @@ except ImportError:
 
 _sistema: Optional[ConceptosLucas] = None
 _pipeline = None
+_aprendizaje: Optional[AprendizajeRefuerzo] = None
 
 
 def get_sistema() -> ConceptosLucas:
@@ -51,6 +54,20 @@ def set_sistema(sistema: ConceptosLucas):
     """Permite inyectar un sistema (para tests)."""
     global _sistema
     _sistema = sistema
+
+
+def get_aprendizaje() -> AprendizajeRefuerzo:
+    """Retorna la instancia de AprendizajeRefuerzo."""
+    global _aprendizaje
+    if _aprendizaje is None:
+        _aprendizaje = AprendizajeRefuerzo()
+    return _aprendizaje
+
+
+def set_aprendizaje(ap: AprendizajeRefuerzo):
+    """Permite inyectar instancia (para tests)."""
+    global _aprendizaje
+    _aprendizaje = ap
 
 
 def get_pipeline():
@@ -357,6 +374,57 @@ async def ingest_text(body: IngestRequest):
         modo_nlp=resultado.get("modo", "basico"),
         dim_original=resultado.get("dim_original", 0),
         dim_reducida=resultado.get("dim_reducida", 15),
+    )
+
+
+# --- Feedback ---
+
+@app.post("/api/v1/feedback", response_model=FeedbackResponse, tags=["feedback"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def submit_feedback(body: FeedbackRequest):
+    """
+    Marca un concepto como relevante o ruido.
+
+    - relevante: fortalece el concepto y refuerza sus conexiones
+    - ruido: debilita el concepto y penaliza sus conexiones
+    """
+    sistema = get_sistema()
+    if body.concepto not in sistema.conceptos:
+        raise HTTPException(status_code=404, detail=f"Concepto '{body.concepto}' no encontrado")
+
+    data = sistema.conceptos[body.concepto]
+    fuerza_antes = data.get("fuerza", 1.0)
+
+    aprendizaje = get_aprendizaje()
+
+    if body.tipo == "relevante":
+        # Fortalecer concepto
+        data["fuerza"] = min(2.0, fuerza_antes + 0.3 * body.intensidad)
+
+        # Refuerzo positivo en conexiones via Q-learning
+        for vecino in sistema.grafo.neighbors(body.concepto):
+            aprendizaje.actualizar(body.concepto, vecino, recompensa=body.intensidad)
+
+        mensaje = f"Concepto '{body.concepto}' fortalecido"
+
+    else:  # ruido
+        # Debilitar concepto
+        data["fuerza"] = max(0.05, fuerza_antes - 0.4 * body.intensidad)
+
+        # Penalizacion en conexiones
+        for vecino in sistema.grafo.neighbors(body.concepto):
+            aprendizaje.actualizar(body.concepto, vecino, recompensa=-body.intensidad)
+
+        mensaje = f"Concepto '{body.concepto}' debilitado"
+
+    fuerza_despues = data["fuerza"]
+
+    return FeedbackResponse(
+        concepto=body.concepto,
+        tipo=body.tipo,
+        fuerza_antes=round(fuerza_antes, 4),
+        fuerza_despues=round(fuerza_despues, 4),
+        mensaje=mensaje,
     )
 
 

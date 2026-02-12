@@ -374,3 +374,77 @@ class TestDocs:
     def test_docs_page(self, client):
         r = client.get("/docs")
         assert r.status_code == 200
+
+    def test_feedback_in_schema(self, client):
+        r = client.get("/openapi.json")
+        assert "/api/v1/feedback" in r.json()["paths"]
+
+
+# ==================== Feedback ====================
+
+class TestFeedback:
+    def test_feedback_relevante(self, client):
+        r = client.post("/api/v1/feedback", json={
+            "concepto": "Python",
+            "tipo": "relevante",
+            "intensidad": 0.8,
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert data["tipo"] == "relevante"
+        assert data["fuerza_despues"] > data["fuerza_antes"]
+        assert "fortalecido" in data["mensaje"]
+
+    def test_feedback_ruido(self, client):
+        r = client.post("/api/v1/feedback", json={
+            "concepto": "Python",
+            "tipo": "ruido",
+            "intensidad": 0.8,
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert data["tipo"] == "ruido"
+        assert data["fuerza_despues"] < data["fuerza_antes"]
+        assert "debilitado" in data["mensaje"]
+
+    def test_feedback_concepto_no_existe(self, client):
+        r = client.post("/api/v1/feedback", json={
+            "concepto": "NoExiste",
+            "tipo": "relevante",
+        })
+        assert r.status_code == 404
+
+    def test_feedback_tipo_invalido(self, client):
+        r = client.post("/api/v1/feedback", json={
+            "concepto": "Python",
+            "tipo": "invalido",
+        })
+        assert r.status_code == 422
+
+    def test_feedback_intensidad_default(self, client):
+        r = client.post("/api/v1/feedback", json={
+            "concepto": "Python",
+            "tipo": "relevante",
+        })
+        assert r.status_code == 200
+
+    def test_feedback_acumulativo(self, client):
+        # Multiples feedbacks relevantes deben acumular
+        r1 = client.post("/api/v1/feedback", json={
+            "concepto": "Python", "tipo": "relevante", "intensidad": 0.5
+        })
+        fuerza1 = r1.json()["fuerza_despues"]
+
+        r2 = client.post("/api/v1/feedback", json={
+            "concepto": "Python", "tipo": "relevante", "intensidad": 0.5
+        })
+        fuerza2 = r2.json()["fuerza_despues"]
+        assert fuerza2 >= fuerza1
+
+    def test_feedback_ruido_no_baja_de_minimo(self, client):
+        # Muchos ruidos no deben bajar fuerza a 0
+        for _ in range(20):
+            r = client.post("/api/v1/feedback", json={
+                "concepto": "Python", "tipo": "ruido", "intensidad": 1.0
+            })
+        assert r.json()["fuerza_despues"] >= 0.05

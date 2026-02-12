@@ -91,6 +91,20 @@ class ErrorResponse(BaseModel):
     detail: Optional[str] = None
 
 
+class FeedbackRequest(BaseModel):
+    concepto: str = Field(..., min_length=1, description="Concepto a evaluar")
+    tipo: str = Field(..., pattern="^(relevante|ruido)$", description="Tipo: 'relevante' o 'ruido'")
+    intensidad: float = Field(0.5, ge=0, le=1, description="Intensidad del feedback")
+
+
+class FeedbackResponse(BaseModel):
+    concepto: str
+    tipo: str
+    fuerza_antes: float
+    fuerza_despues: float
+    mensaje: str
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
