@@ -157,3 +157,61 @@ class PredictiveResponse(BaseModel):
     proximas_tecnologias: List[Dict[str, Any]]
     patrones_personales: Optional[str] = None
     narrativa: str
+
+
+# --- Organismo Models (Fase 7) ---
+
+class ChatRequest(BaseModel):
+    mensaje: str = Field(..., min_length=1, max_length=5000, description="Mensaje para IANAE")
+
+
+class ChatResponse(BaseModel):
+    respuesta: str
+    conceptos_detectados: List[str]
+    coherencia: float
+
+
+class SuenoRequest(BaseModel):
+    tipo: str = Field(..., pattern="^(conexion|concepto)$", description="Tipo de hipotesis")
+    a: Optional[str] = Field(None, description="Concepto A (para conexion)")
+    b: Optional[str] = Field(None, description="Concepto B (para conexion)")
+    fuerza: float = Field(0.7, ge=0, le=1, description="Fuerza de la conexion imaginada")
+    nombre: Optional[str] = Field(None, description="Nombre del concepto (para concepto)")
+    categoria: str = Field("emergentes", description="Categoria del concepto imaginado")
+    conectar_a: List[str] = Field(default_factory=list, description="Conceptos a conectar")
+
+
+class SuenoResponse(BaseModel):
+    tipo: str
+    hipotesis: Dict[str, Any]
+    evaluacion: Optional[Dict[str, Any]] = None
+    impacto: Optional[float] = None
+    veredicto: Optional[str] = None
+
+
+class ConscienciaResponse(BaseModel):
+    pulso: Dict[str, Any]
+    superficie: float
+    corrientes: Dict[str, Any]
+    sesgos: List[Dict[str, Any]]
+    crecimiento: Dict[str, Any]
+    narrativa: str
+
+
+class OrganismoResponse(BaseModel):
+    nacido: float
+    edad_s: float
+    conceptos: int
+    relaciones: int
+    ciclo_actual: int
+    pulso: Dict[str, Any]
+    superficie: float
+    corrientes: Dict[str, Any]
+    objetivos_pendientes: int
+    suenos_prometedores: int
+    conversaciones: int
+
+
+class DiarioResponse(BaseModel):
+    entradas: List[Dict[str, Any]]
+    total: int

@@ -24,6 +24,9 @@ from src.api.models import (
     MetricsResponse,
     RecommendationsRequest, PatternsResponse,
     RecommendationsResponse, PredictiveResponse,
+    ChatRequest, ChatResponse,
+    SuenoRequest, SuenoResponse,
+    ConscienciaResponse, OrganismoResponse, DiarioResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -564,6 +567,103 @@ async def get_predictivo():
     """Analisis predictivo: tendencias, gaps, predicciones."""
     engine = get_insights()
     return PredictiveResponse(**engine.analisis_predictivo())
+
+
+# --- Organismo (Fase 7) ---
+
+_organismo = None
+
+
+def get_organismo():
+    """Retorna la instancia del organismo IANAE (lazy init desde sistema existente)."""
+    global _organismo
+    if _organismo is None:
+        from src.core.organismo import IANAE
+        _organismo = IANAE.desde_componentes(get_sistema())
+    return _organismo
+
+
+def set_organismo(org):
+    """Permite inyectar organismo (para tests)."""
+    global _organismo
+    _organismo = org
+
+
+@app.post("/api/v1/chat", response_model=ChatResponse, tags=["organismo"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def chat(body: ChatRequest):
+    """Habla con IANAE. Retorna respuesta desde el grafo y la consciencia."""
+    org = get_organismo()
+    resultado = org.preguntar(body.mensaje)
+    return ChatResponse(
+        respuesta=resultado.get("respuesta", ""),
+        conceptos_detectados=resultado.get("conceptos_detectados", []),
+        coherencia=resultado.get("coherencia", 0.0),
+    )
+
+
+@app.post("/api/v1/suenos/imaginar", response_model=SuenoResponse, tags=["organismo"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def imaginar(body: SuenoRequest):
+    """Simula una hipotesis en sandbox sin modificar el grafo real."""
+    org = get_organismo()
+    hipotesis: dict = {"tipo": body.tipo}
+    if body.tipo == "conexion":
+        if not body.a or not body.b:
+            raise HTTPException(status_code=422, detail="Conexion requiere 'a' y 'b'")
+        hipotesis.update({"a": body.a, "b": body.b, "fuerza": body.fuerza})
+    else:
+        if not body.nombre:
+            raise HTTPException(status_code=422, detail="Concepto requiere 'nombre'")
+        hipotesis.update({
+            "nombre": body.nombre,
+            "categoria": body.categoria,
+            "conectar_a": body.conectar_a,
+        })
+    resultado = org.imaginar(hipotesis)
+    return SuenoResponse(
+        tipo=resultado.get("tipo", body.tipo),
+        hipotesis=resultado.get("hipotesis", hipotesis),
+        evaluacion=resultado.get("evaluacion"),
+        impacto=resultado.get("impacto"),
+        veredicto=resultado.get("evaluacion", resultado).get("veredicto")
+        if isinstance(resultado.get("evaluacion", resultado), dict) else None,
+    )
+
+
+@app.get("/api/v1/consciencia", response_model=ConscienciaResponse, tags=["organismo"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_consciencia():
+    """Estado de consciencia: pulso, fuerzas, sesgos, crecimiento, narrativa."""
+    org = get_organismo()
+    c = org.consciencia
+    return ConscienciaResponse(
+        pulso=c.pulso(),
+        superficie=c.superficie(),
+        corrientes=c.corrientes(),
+        sesgos=c.detectar_sesgos(),
+        crecimiento=c.medir_crecimiento(),
+        narrativa=c.narrar_estado(),
+    )
+
+
+@app.get("/api/v1/organismo", response_model=OrganismoResponse, tags=["organismo"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_organismo_estado():
+    """Estado completo del organismo IANAE."""
+    org = get_organismo()
+    return OrganismoResponse(**org.estado())
+
+
+@app.get("/api/v1/vida/diario", response_model=DiarioResponse, tags=["organismo"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_diario(
+    ultimos: int = Query(10, ge=1, le=100, description="Ultimas N entradas"),
+):
+    """Lee el diario de vida de IANAE."""
+    org = get_organismo()
+    entradas = org.vida.leer_diario(ultimos=ultimos)
+    return DiarioResponse(entradas=entradas, total=len(entradas))
 
 
 # --- Entry point ---
