@@ -190,7 +190,7 @@ def execute_action(action_data, docs_client):
         msg = action_data.get("message", "Requiere atencion")
         logger.warning("Escalado a Lucas", escalation=msg)
         print(f"\n{'='*60}")
-        print(f"  ESCALADO A LUCAS: {msg}")
+        print(f"  ESCALADO A LUCAS: {msg.encode('ascii', 'replace').decode()}")
         print(f"{'='*60}\n")
         docs_client.publish_escalado(msg)
         return True
