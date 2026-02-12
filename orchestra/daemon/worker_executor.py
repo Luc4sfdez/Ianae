@@ -145,6 +145,9 @@ class WorkerExecutor:
         # Titulos ya vistos (anti-duplicados: si hay 2 ordenes con mismo titulo, skip la segunda)
         self._seen_titles: set = set()
 
+        # Ultimo output de tests fallidos (para feedback en reintentos)
+        self._last_test_output: str = ""
+
         logger.info(
             f"WorkerExecutor inicializado",
             worker=worker_name,
@@ -219,6 +222,41 @@ class WorkerExecutor:
                 return True
         return False
 
+    def _fix_scope_path(self, file_path: str) -> Optional[str]:
+        """
+        Intentar corregir un path fuera de scope.
+
+        Casos comunes que el LLM genera mal:
+          tests/test_x.py -> tests/core/test_x.py (para worker-core)
+          emergente.py -> src/core/emergente.py
+          src/memoria.py -> src/core/memoria.py
+
+        Returns:
+            Path corregido o None si no se puede corregir.
+        """
+        normalized = file_path.replace("\\", "/").lstrip("/")
+        if self._is_path_in_scope(normalized):
+            return normalized
+
+        filename = normalized.split("/")[-1]
+
+        # Intentar ubicar en cada scope dir
+        for scope in self.scope_paths:
+            scope_normalized = scope.replace("\\", "/").rstrip("/")
+            candidate = f"{scope_normalized}/{filename}"
+            # Si es un test file, ponerlo en el scope de tests
+            if "test" in filename.lower() and "test" in scope_normalized:
+                return candidate
+            # Si es un archivo de codigo, ponerlo en el scope de src
+            if "test" not in filename.lower() and "test" not in scope_normalized:
+                return candidate
+
+        # Fallback: primer scope dir
+        if self.scope_paths:
+            return f"{self.scope_paths[0].rstrip('/')}/{filename}"
+
+        return None
+
     def _read_scope_files(self, orden: Optional[Dict] = None) -> str:
         """
         Leer archivos del scope para dar contexto al LLM.
@@ -251,20 +289,30 @@ class WorkerExecutor:
                 for py_file in sorted(full_path.rglob("*.py")):
                     rel = str(py_file.relative_to(self.project_root)).replace("\\", "/")
 
-                    # Filtrar: solo archivos mencionados o principales (no tests)
+                    # Filtrar __init__.py siempre
+                    if rel.endswith("__init__.py"):
+                        continue
+
+                    # Si hay archivos mencionados, solo enviar esos
+                    is_test_file = "test" in rel.lower()
                     if mentioned_files:
                         is_mentioned = any(m in rel or rel.endswith(m) for m in mentioned_files)
-                        if not is_mentioned:
-                            continue
-                    else:
-                        if "test" in rel.lower() or rel.endswith("__init__.py"):
+                        if not is_mentioned and not is_test_file:
                             continue
 
                     try:
                         content = py_file.read_text(encoding="utf-8", errors="replace")
                         lines = content.split("\n")
 
-                        if len(lines) > MAX_FULL_LINES:
+                        if is_test_file:
+                            # Tests siempre resumidos (imports + signatures)
+                            summary = self._summarize_python(content, lines)
+                            context_parts.append(
+                                f"### FILE: {rel} (TEST - {len(lines)} lineas, "
+                                f"NO modificar tests existentes)\n"
+                                f"```python\n{summary}\n```"
+                            )
+                        elif len(lines) > MAX_FULL_LINES:
                             # Resumir: imports + signatures de clase/metodos + ultimas 30 lineas
                             summary = self._summarize_python(content, lines)
                             context_parts.append(
@@ -583,13 +631,19 @@ class WorkerExecutor:
         }
         return f"\n\n<!-- COST_DATA: {json.dumps(data)} -->"
 
-    def _chunked_generate(self, orden: Dict, context: str) -> Tuple[List[Dict], str, list]:
+    def _chunked_generate(self, orden: Dict, context: str,
+                          previous_test_output: str = "") -> Tuple[List[Dict], str, list]:
         """
         Generacion chunked: planning call + per-file calls.
 
         Parte la generacion LLM en multiples llamadas pequenas para evitar
         el limite de output tokens de DeepSeek (8192). Cada llamada usa
         max ~6000 tokens de output.
+
+        Args:
+            orden: Documento de la orden.
+            context: Contexto de archivos del scope.
+            previous_test_output: Output de tests fallidos del intento anterior (para retry).
 
         Returns:
             (files, report, all_llm_responses)
@@ -601,11 +655,24 @@ class WorkerExecutor:
         orden_content = orden.get("content", "")
         orden_title = orden.get("title", "Sin titulo")
 
+        # Fix 1: incluir errores del intento anterior para que el LLM los corrija
+        retry_context = ""
+        if previous_test_output:
+            retry_context = (
+                "\n\n# ERRORES DEL INTENTO ANTERIOR (CORRIGELOS)\n\n"
+                "El intento anterior genero codigo pero los tests fallaron. "
+                "Aqui esta el output de los tests:\n\n"
+                f"```\n{previous_test_output[-1500:]}\n```\n\n"
+                "IMPORTANTE: Corrige los errores especificos de arriba. "
+                "No repitas el mismo codigo que fallo.\n"
+            )
+
         planning_user_msg = (
             f"# Orden: {orden_title}\n\n"
             f"{orden_content}\n\n"
             f"# Archivos actuales (contexto)\n\n"
-            f"{context}\n\n"
+            f"{context}\n"
+            f"{retry_context}\n"
             "# RESPONDE con ### PLAN listando archivos necesarios"
         )
 
@@ -640,6 +707,24 @@ class WorkerExecutor:
                 report = report_match.group(1).strip()
             return [], report, all_responses
 
+        # Fix 2: Auto-corregir paths fuera de scope
+        fixed_files = []
+        for path, desc in planned_files:
+            if self._is_path_in_scope(path):
+                fixed_files.append((path, desc))
+            else:
+                fixed = self._fix_scope_path(path)
+                if fixed:
+                    logger.warning(f"Chunked: path corregido: {path} -> {fixed}")
+                    fixed_files.append((fixed, desc))
+                else:
+                    logger.warning(f"Chunked: descartando path fuera de scope: {path}")
+        planned_files = fixed_files
+
+        if not planned_files:
+            logger.warning("Chunked: todos los paths del plan estan fuera de scope")
+            return [], "", all_responses
+
         # Limitar a WORKER_MAX_FILES
         if len(planned_files) > WORKER_MAX_FILES:
             logger.warning(
@@ -663,7 +748,8 @@ class WorkerExecutor:
                 f"# Orden: {orden_title}\n\n"
                 f"{orden_content}\n\n"
                 f"# Archivos actuales (contexto)\n\n"
-                f"{context}\n\n"
+                f"{context}\n"
+                f"{retry_context}\n"
                 f"# Genera SOLO el archivo: {file_path}"
             )
 
@@ -735,7 +821,10 @@ class WorkerExecutor:
 
         # 3. Generacion chunked (planning + per-file calls)
         try:
-            files, report, all_responses = self._chunked_generate(orden, context)
+            files, report, all_responses = self._chunked_generate(
+                orden, context,
+                previous_test_output=self._last_test_output if attempt > 1 else "",
+            )
             total_in = sum(r.input_tokens for r in all_responses)
             total_out = sum(r.output_tokens for r in all_responses)
             logger.info(
@@ -803,6 +892,9 @@ class WorkerExecutor:
             f"{len(all_responses)} llamadas chunked "
             f"({total_in}in/{total_out}out)"
         )
+
+        # Guardar output de tests para feedback en reintentos
+        self._last_test_output = test_output if not tests_passed else ""
 
         if tests_passed:
             # 7a. Exito -> reportar completado
