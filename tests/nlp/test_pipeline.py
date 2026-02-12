@@ -1,7 +1,9 @@
-"""Tests para PipelineNLP y ReduccionDimensional."""
+"""Tests para PipelineNLP, ReduccionDimensional, EmbeddingCacheDisco y chunking."""
+import os
+import tempfile
 import pytest
 import numpy as np
-from src.nlp.pipeline import PipelineNLP, ReduccionDimensional
+from src.nlp.pipeline import PipelineNLP, ReduccionDimensional, EmbeddingCacheDisco
 from src.core.nucleo import ConceptosLucas
 
 
@@ -53,6 +55,97 @@ class TestReduccionDimensional:
         np.testing.assert_array_almost_equal(r1[0], r2)
 
 
+# --- EmbeddingCacheDisco ---
+
+class TestEmbeddingCacheDisco:
+    def test_put_y_get(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            vec = np.array([1.0, 2.0, 3.0])
+            cache.put("hola", vec)
+            result = cache.get("hola")
+            assert result is not None
+            np.testing.assert_array_almost_equal(result, vec)
+        finally:
+            os.unlink(ruta)
+
+    def test_persistencia_entre_instancias(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache1 = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            cache1.put("concepto", np.array([0.5, 0.6, 0.7]))
+
+            cache2 = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            result = cache2.get("concepto")
+            assert result is not None
+            np.testing.assert_array_almost_equal(result, [0.5, 0.6, 0.7])
+        finally:
+            os.unlink(ruta)
+
+    def test_get_inexistente(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            assert cache.get("noexiste") is None
+        finally:
+            os.unlink(ruta)
+
+    def test_contains(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            cache.put("existe", np.array([1.0]))
+            assert "existe" in cache
+            assert "noexiste" not in cache
+        finally:
+            os.unlink(ruta)
+
+    def test_len(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            assert len(cache) == 0
+            cache.put("a", np.array([1.0]))
+            cache.put("b", np.array([2.0]))
+            assert len(cache) == 2
+        finally:
+            os.unlink(ruta)
+
+    def test_no_duplica_entries(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache = EmbeddingCacheDisco(ruta=ruta, modelo_id="test")
+            cache.put("x", np.array([1.0]))
+            cache.put("x", np.array([1.0]))  # duplicado
+            assert len(cache) == 1
+        finally:
+            os.unlink(ruta)
+
+    def test_archivo_inexistente_no_crashea(self):
+        cache = EmbeddingCacheDisco(ruta="/tmp/no_existe_abc123.jsonl", modelo_id="test")
+        assert len(cache) == 0
+
+    def test_modelos_diferentes_keys_diferentes(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            cache = EmbeddingCacheDisco(ruta=ruta, modelo_id="modelo_a")
+            cache.put("texto", np.array([1.0, 2.0]))
+
+            cache_b = EmbeddingCacheDisco(ruta=ruta, modelo_id="modelo_b")
+            # Mismo texto, modelo diferente -> key diferente
+            assert cache_b.get("texto") is None
+        finally:
+            os.unlink(ruta)
+
+
 # --- PipelineNLP ---
 
 class TestPipelineNLP:
@@ -97,6 +190,86 @@ class TestPipelineNLP:
         assert resultado["dim_reducida"] == 10
         for vec in resultado["vectores_reducidos"].values():
             assert len(vec) == 10
+
+    def test_pipeline_cache_disco(self):
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
+            ruta = f.name
+        try:
+            pipeline = PipelineNLP(
+                sistema_ianae=None, modo_nlp="basico",
+                cache_disco=True, cache_ruta=ruta
+            )
+            pipeline.procesar("Python numpy tensorflow", max_conceptos=3)
+            assert pipeline._cache_disco is not None
+            assert len(pipeline._cache_disco) > 0
+
+            # Segunda instancia lee del disco
+            pipeline2 = PipelineNLP(
+                sistema_ianae=None, modo_nlp="basico",
+                cache_disco=True, cache_ruta=ruta
+            )
+            assert len(pipeline2._cache_disco) > 0
+        finally:
+            os.unlink(ruta)
+
+
+# --- Chunking ---
+
+class TestChunking:
+    def test_dividir_texto_corto_no_divide(self):
+        chunks = PipelineNLP._dividir_chunks("texto corto de prueba", max_palabras=200)
+        assert len(chunks) == 1
+
+    def test_dividir_texto_largo(self):
+        palabras = ["palabra"] * 500
+        texto = " ".join(palabras)
+        chunks = PipelineNLP._dividir_chunks(texto, max_palabras=100, solapamiento=10)
+        assert len(chunks) > 1
+        # Cada chunk no excede max_palabras (aprox)
+        for chunk in chunks:
+            assert len(chunk.split()) <= 110  # margen por solapamiento
+
+    def test_dividir_con_puntos(self):
+        # Texto con puntos naturales — debe preferir cortar ahí
+        oraciones = ["Oracion numero {}.".format(i) for i in range(50)]
+        texto = " ".join(oraciones)
+        chunks = PipelineNLP._dividir_chunks(texto, max_palabras=20, solapamiento=3)
+        assert len(chunks) > 1
+        # Al menos un chunk debe terminar con punto
+        terminan_punto = [c for c in chunks if c.rstrip().endswith('.')]
+        assert len(terminan_punto) > 0
+
+    def test_procesar_largo_texto_corto(self):
+        pipeline = PipelineNLP(sistema_ianae=None, modo_nlp="basico")
+        resultado = pipeline.procesar_largo("Python es rapido", max_conceptos=3)
+        assert resultado["chunks"] == 1
+        assert len(resultado["conceptos"]) > 0
+
+    def test_procesar_largo_texto_largo(self):
+        pipeline = PipelineNLP(sistema_ianae=None, modo_nlp="basico")
+        # Generar texto largo con conceptos variados
+        partes = [
+            "Python es un lenguaje de programacion versatil.",
+            "Numpy permite operaciones con vectores numericos.",
+            "OpenCV procesa imagenes y detecta patrones visuales.",
+            "FastAPI construye servicios web rapidos.",
+            "Docker empaqueta aplicaciones en contenedores.",
+        ] * 20  # ~500 palabras
+        texto = " ".join(partes)
+        resultado = pipeline.procesar_largo(texto, max_palabras_chunk=50,
+                                             solapamiento=5, max_conceptos=8)
+        assert resultado["chunks"] > 1
+        assert len(resultado["conceptos"]) > 0
+        assert len(resultado["conceptos"]) <= 8
+
+    def test_procesar_largo_deduplica_conceptos(self):
+        pipeline = PipelineNLP(sistema_ianae=None, modo_nlp="basico")
+        # Mismo concepto repetido en multiples chunks
+        texto = " ".join(["Python es genial."] * 100)
+        resultado = pipeline.procesar_largo(texto, max_palabras_chunk=30,
+                                             solapamiento=5, max_conceptos=10)
+        nombres = [c["nombre"] for c in resultado["conceptos"]]
+        assert len(nombres) == len(set(nombres))  # sin duplicados
 
 
 # --- Integracion con nucleo ---

@@ -2,10 +2,69 @@
 # Scope: src/nlp/ (Worker-NLP)
 # Importa ConceptosLucas de nucleo.py (NO lo modifica)
 
+import hashlib
+import json
+import os
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 
 from src.nlp.extractor import ExtractorConceptos
+
+
+class EmbeddingCacheDisco:
+    """
+    Cache de embeddings persistido en disco (JSON lines).
+
+    Cada entrada: {"key": sha256(texto+modelo), "embedding": [...], "texto": "..."}
+    """
+
+    def __init__(self, ruta: Optional[str] = None, modelo_id: str = "default"):
+        self.modelo_id = modelo_id
+        self._cache = {}
+        if ruta is None:
+            ruta = os.path.join(os.path.dirname(__file__), ".embedding_cache.jsonl")
+        self.ruta = ruta
+        self._cargar()
+
+    def _hash_key(self, texto: str) -> str:
+        raw = f"{self.modelo_id}:{texto}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+    def _cargar(self):
+        if not os.path.exists(self.ruta):
+            return
+        try:
+            with open(self.ruta, "r", encoding="utf-8") as f:
+                for linea in f:
+                    linea = linea.strip()
+                    if not linea:
+                        continue
+                    entry = json.loads(linea)
+                    self._cache[entry["key"]] = np.array(entry["embedding"])
+        except (json.JSONDecodeError, KeyError, OSError):
+            pass
+
+    def get(self, texto: str) -> Optional[np.ndarray]:
+        key = self._hash_key(texto)
+        return self._cache.get(key)
+
+    def put(self, texto: str, embedding: np.ndarray):
+        key = self._hash_key(texto)
+        if key in self._cache:
+            return
+        self._cache[key] = embedding
+        try:
+            with open(self.ruta, "a", encoding="utf-8") as f:
+                entry = {"key": key, "embedding": embedding.tolist(), "texto": texto[:100]}
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
+
+    def __len__(self):
+        return len(self._cache)
+
+    def __contains__(self, texto: str) -> bool:
+        return self._hash_key(texto) in self._cache
 
 
 class ReduccionDimensional:
@@ -101,18 +160,25 @@ class PipelineNLP:
         resultado = pipeline.procesar("Python es un lenguaje versátil para IA")
     """
 
-    def __init__(self, sistema_ianae=None, dim_vector: int = 15, modo_nlp: str = "auto"):
+    def __init__(self, sistema_ianae=None, dim_vector: int = 15, modo_nlp: str = "auto",
+                 cache_disco: bool = False, cache_ruta: Optional[str] = None):
         """
         Args:
             sistema_ianae: instancia de ConceptosLucas (o None para crear nueva)
             dim_vector: dimensión de vectores del sistema IANAE
             modo_nlp: modo del extractor ("auto", "spacy", "transformers", "basico")
+            cache_disco: si True, persiste embeddings en disco
+            cache_ruta: ruta al archivo de cache (por defecto .embedding_cache.jsonl)
         """
         self.dim_vector = dim_vector
         self.extractor = ExtractorConceptos(modo=modo_nlp)
         self.reductor = ReduccionDimensional(dim_target=dim_vector)
         self.sistema = sistema_ianae
         self._embeddings_cache = {}
+        self._cache_disco = None
+        if cache_disco:
+            modelo_id = self.extractor.modo
+            self._cache_disco = EmbeddingCacheDisco(ruta=cache_ruta, modelo_id=modelo_id)
 
     def procesar(self, texto: str, max_conceptos: int = 10,
                  categoria: str = "nlp_extraidos",
@@ -134,15 +200,20 @@ class PipelineNLP:
         if not conceptos:
             return {"conceptos": [], "relaciones": [], "error": "No se extrajeron conceptos"}
 
-        # Paso 2: Generar embeddings (con cache)
+        # Paso 2: Generar embeddings (con cache memoria + disco)
         embeddings_originales = {}
         for concepto in conceptos:
             nombre = concepto["nombre"]
             if nombre in self._embeddings_cache:
                 embedding = self._embeddings_cache[nombre]
+            elif self._cache_disco is not None and nombre in self._cache_disco:
+                embedding = self._cache_disco.get(nombre)
+                self._embeddings_cache[nombre] = embedding
             else:
                 embedding = self.extractor.generar_embedding(nombre)
                 self._embeddings_cache[nombre] = embedding
+                if self._cache_disco is not None:
+                    self._cache_disco.put(nombre, embedding)
             embeddings_originales[nombre] = embedding
 
         # Paso 3: Reducción dimensional (384/768 → 15)
@@ -201,6 +272,118 @@ class PipelineNLP:
         for c1, c2, peso in relaciones:
             if c1 in self.sistema.conceptos and c2 in self.sistema.conceptos:
                 self.sistema.relacionar(c1, c2, fuerza=peso)
+
+    def procesar_largo(self, texto: str, max_palabras_chunk: int = 200,
+                        solapamiento: int = 30, **kwargs) -> Dict:
+        """
+        Procesa textos largos dividiéndolos en chunks con solapamiento.
+
+        Cada chunk se procesa individualmente y los conceptos/relaciones se
+        fusionan deduplicando por nombre.
+
+        Args:
+            texto: texto largo a procesar
+            max_palabras_chunk: palabras máximas por chunk
+            solapamiento: palabras de solapamiento entre chunks
+            **kwargs: pasados a procesar() (max_conceptos, categoria, etc.)
+
+        Returns:
+            Dict con resultados fusionados + metadata de chunking
+        """
+        chunks = self._dividir_chunks(texto, max_palabras_chunk, solapamiento)
+
+        if len(chunks) <= 1:
+            resultado = self.procesar(texto, **kwargs)
+            resultado["chunks"] = 1
+            return resultado
+
+        # Procesar cada chunk
+        todos_conceptos = {}  # nombre -> {concepto_dict, relevancia_acumulada}
+        todas_relaciones = {}  # (c1, c2) -> peso_max
+        todos_embeddings = {}
+        todos_vectores = {}
+
+        for chunk in chunks:
+            resultado = self.procesar(chunk, **kwargs)
+
+            for concepto in resultado.get("conceptos", []):
+                nombre = concepto["nombre"]
+                if nombre in todos_conceptos:
+                    # Acumular relevancia (max)
+                    if concepto["relevancia"] > todos_conceptos[nombre]["relevancia"]:
+                        todos_conceptos[nombre] = concepto
+                else:
+                    todos_conceptos[nombre] = concepto
+
+            for c1, c2, peso in resultado.get("relaciones", []):
+                par = tuple(sorted([c1, c2]))
+                if par not in todas_relaciones or peso > todas_relaciones[par]:
+                    todas_relaciones[par] = peso
+
+            for nombre, emb in resultado.get("embeddings_originales", {}).items():
+                if nombre not in todos_embeddings:
+                    todos_embeddings[nombre] = emb
+
+            for nombre, vec in resultado.get("vectores_reducidos", {}).items():
+                if nombre not in todos_vectores:
+                    todos_vectores[nombre] = vec
+
+        # Ordenar conceptos por relevancia
+        conceptos_final = sorted(todos_conceptos.values(),
+                                 key=lambda c: c["relevancia"], reverse=True)
+        max_conceptos = kwargs.get("max_conceptos", 10)
+        conceptos_final = conceptos_final[:max_conceptos]
+
+        relaciones_final = [(c1, c2, peso) for (c1, c2), peso in todas_relaciones.items()]
+        relaciones_final.sort(key=lambda x: x[2], reverse=True)
+
+        return {
+            "conceptos": conceptos_final,
+            "relaciones": relaciones_final,
+            "embeddings_originales": todos_embeddings,
+            "vectores_reducidos": todos_vectores,
+            "modo": self.extractor.modo,
+            "dim_original": resultado.get("dim_original", 0),
+            "dim_reducida": self.dim_vector,
+            "chunks": len(chunks)
+        }
+
+    @staticmethod
+    def _dividir_chunks(texto: str, max_palabras: int = 200,
+                        solapamiento: int = 30) -> List[str]:
+        """
+        Divide texto en chunks de max_palabras con solapamiento.
+
+        Intenta cortar en puntos naturales (., !, ?, \\n).
+        """
+        palabras = texto.split()
+        if len(palabras) <= max_palabras:
+            return [texto]
+
+        chunks = []
+        inicio = 0
+        while inicio < len(palabras):
+            fin = min(inicio + max_palabras, len(palabras))
+
+            # Intentar cortar en punto natural (buscar hacia atrás)
+            if fin < len(palabras):
+                mejor_corte = fin
+                for i in range(fin, max(inicio + max_palabras // 2, inicio), -1):
+                    palabra = palabras[i - 1]
+                    if palabra.endswith(('.', '!', '?', '\n')):
+                        mejor_corte = i
+                        break
+                fin = mejor_corte
+
+            chunk_palabras = palabras[inicio:fin]
+            chunks.append(" ".join(chunk_palabras))
+
+            # Avanzar con solapamiento
+            inicio = fin - solapamiento
+            if inicio >= len(palabras) - solapamiento:
+                break
+
+        return chunks
 
     def procesar_batch(self, textos: List[str], **kwargs) -> List[Dict]:
         """Procesa múltiples textos."""
