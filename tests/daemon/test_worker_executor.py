@@ -281,22 +281,34 @@ class TestExecuteOrder:
         src_dir.mkdir(parents=True)
         (src_dir / "nucleo.py").write_text("# original", encoding="utf-8")
 
-        # Mock LLM response
-        llm_text = (
-            "### FILE: src/core/nucleo.py\n"
-            "```python\n"
-            "# modified\n"
-            "```\n\n"
+        # Mock planning call (chat) -> devuelve plan con archivos
+        plan_text = (
+            "### PLAN\n"
+            "- FILE: src/core/nucleo.py — Modificar nucleo\n"
             "### REPORT\n"
             "Se modifico nucleo."
         )
         executor.llm_chain.chat.return_value = LLMResponse(
-            text=llm_text,
+            text=plan_text,
             provider="deepseek",
             model="deepseek-chat",
             input_tokens=500,
             output_tokens=200,
         )
+        # Mock per-file call (chat_with_preferred) -> devuelve archivo
+        file_text = (
+            "### FILE: src/core/nucleo.py\n"
+            "```python\n"
+            "# modified\n"
+            "```\n"
+        )
+        executor.llm_chain.chat_with_preferred = MagicMock(return_value=LLMResponse(
+            text=file_text,
+            provider="deepseek",
+            model="deepseek-chat",
+            input_tokens=300,
+            output_tokens=150,
+        ))
 
         # Mock tests passing
         with patch.object(executor, "_run_tests", return_value=(True, "2 passed")):
@@ -322,26 +334,39 @@ class TestExecuteOrder:
         src_dir.mkdir(parents=True)
         (src_dir / "nucleo.py").write_text("# original", encoding="utf-8")
 
-        llm_text = (
-            "### FILE: src/core/nucleo.py\n"
-            "```python\n"
-            "# broken code\n"
-            "```\n\n"
+        # Mock planning call -> plan con archivo
+        plan_text = (
+            "### PLAN\n"
+            "- FILE: src/core/nucleo.py — Romper nucleo\n"
             "### REPORT\n"
             "Cambio roto."
         )
         executor.llm_chain.chat.return_value = LLMResponse(
-            text=llm_text,
+            text=plan_text,
             provider="deepseek",
             model="deepseek-chat",
             input_tokens=500,
             output_tokens=200,
         )
+        # Mock per-file call -> archivo roto
+        file_text = (
+            "### FILE: src/core/nucleo.py\n"
+            "```python\n"
+            "# broken code\n"
+            "```\n"
+        )
+        executor.llm_chain.chat_with_preferred = MagicMock(return_value=LLMResponse(
+            text=file_text,
+            provider="deepseek",
+            model="deepseek-chat",
+            input_tokens=300,
+            output_tokens=150,
+        ))
 
-        # Mock tests failing
+        # Mock tests failing — simulate last attempt so mark_as_blocked fires
         with patch.object(executor, "_run_tests", return_value=(False, "FAILED test_x")):
             executor.docs_client = MagicMock()
-            result = executor.execute_order({"id": 8, "title": "Orden rota", "content": "Rompe algo"})
+            result = executor.execute_order({"id": 8, "title": "Orden rota", "content": "Rompe algo"}, attempt=3)
 
         assert result is False
         mock_blocked.assert_called_once()
@@ -373,7 +398,7 @@ class TestExecuteOrder:
         executor = self._make_executor(mock_chain, tmp_path)
         executor.docs_client = MagicMock()
 
-        # LLM responde sin bloques de archivo
+        # Planning call responde sin plan de archivos
         executor.llm_chain.chat.return_value = LLMResponse(
             text="No entendi la orden, podrias clarificar?",
             provider="deepseek",
@@ -382,7 +407,8 @@ class TestExecuteOrder:
             output_tokens=50,
         )
 
-        result = executor.execute_order({"id": 10, "title": "Orden vaga", "content": "Haz algo"})
+        # Simulate last attempt so mark_as_blocked fires
+        result = executor.execute_order({"id": 10, "title": "Orden vaga", "content": "Haz algo"}, attempt=3)
 
         assert result is False
         mock_blocked.assert_called_once()

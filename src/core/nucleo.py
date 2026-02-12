@@ -11,6 +11,8 @@ from datetime import datetime
 from src.core.indice_espacial import IndiceEspacial
 from src.core.persistencia import PersistenciaVectores
 from src.core.versionado import VersionadoEstado
+from src.core.memoria_v2 import MemoriaAsociativaV2
+from src.core.aprendizaje_refuerzo import AprendizajeRefuerzo
 
 class ConceptosLucas:
     """
@@ -30,6 +32,8 @@ class ConceptosLucas:
         self.indice = IndiceEspacial(dim_vector)
         self.persistencia = PersistenciaVectores()
         self.versionado = VersionadoEstado()
+        self.memoria = MemoriaAsociativaV2(capacidad=1000)
+        self.aprendizaje = AprendizajeRefuerzo()
 
         # Métricas específicas para nuestro caso
         self.metricas = {
@@ -657,6 +661,23 @@ class ConceptosLucas:
             'pasos': pasos
         })
 
+        # Aprendizaje por refuerzo sobre la propagacion
+        self.aprendizaje.aprender_de_propagacion(
+            concepto_inicial, resultados, dict(self.relaciones)
+        )
+
+        # Almacenar activacion en memoria asociativa
+        top_activados = sorted(resultados[-1].items(), key=lambda x: x[1], reverse=True)[:5]
+        for nombre_act, valor_act in top_activados:
+            if valor_act > 0.1:
+                clave = f"act:{concepto_inicial}:{nombre_act}"
+                self.memoria.almacenar(clave, {
+                    "origen": concepto_inicial,
+                    "destino": nombre_act,
+                    "activacion": valor_act,
+                    "ciclo": self.metricas['ciclos_pensamiento'],
+                }, fuerza=valor_act)
+
         return resultados
     
     def auto_modificar(self, fuerza=0.1):
@@ -1010,6 +1031,50 @@ class ConceptosLucas:
 
         ref = self.conceptos[nombre_concepto]['actual']
         return self.indice.buscar_similares(ref, top_k=top_k, excluir_id=nombre_concepto)
+
+    def aprender_de_experiencia(self) -> int:
+        """
+        Aplicar ajustes de peso sugeridos por el sistema de aprendizaje.
+
+        Returns:
+            Numero de relaciones ajustadas.
+        """
+        ajustes = self.aprendizaje.sugerir_ajustes_pesos(dict(self.relaciones))
+        aplicados = 0
+        for origen, destino, delta in ajustes:
+            if origen in self._idx and destino in self._idx:
+                i, j = self._idx[origen], self._idx[destino]
+                nuevo_peso = float(np.clip(self._adj[i, j] + delta, 0.0, 1.0))
+                if nuevo_peso != self._adj[i, j]:
+                    self._adj[i, j] = nuevo_peso
+                    self._adj[j, i] = nuevo_peso
+                    # Actualizar grafo networkx
+                    if self.grafo.has_edge(origen, destino):
+                        self.grafo[origen][destino]['weight'] = nuevo_peso
+                    # Actualizar listas de relaciones
+                    for idx, (vecino, _) in enumerate(self.relaciones[origen]):
+                        if vecino == destino:
+                            self.relaciones[origen][idx] = (vecino, nuevo_peso)
+                            break
+                    for idx, (vecino, _) in enumerate(self.relaciones[destino]):
+                        if vecino == origen:
+                            self.relaciones[destino][idx] = (vecino, nuevo_peso)
+                            break
+                    aplicados += 1
+        return aplicados
+
+    def consultar_memoria(self, patron: str, limite: int = 5):
+        """
+        Consultar la memoria asociativa por patron.
+
+        Args:
+            patron: subcadena a buscar en claves de memoria.
+            limite: maximo de resultados.
+
+        Returns:
+            Lista de tuplas (clave, fuerza).
+        """
+        return self.memoria.buscar_similares(patron, top_k=limite)
 
     def guardar_estado(self, nombre: str = "default", versionar: bool = True) -> bool:
         """

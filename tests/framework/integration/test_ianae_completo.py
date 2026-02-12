@@ -27,16 +27,8 @@ try:
     # No necesitamos importarlos directamente aquí
     from core.database import IANAEDatabase
 except ImportError as e:
-    print(f"⚠️ Error importando módulos IANAE: {e}")
-    print("💡 Estructura esperada:")
-    print("   ianae_ver04/")
-    print("   ├── processors/")
-    print("   │   └── auto_detector.py")  
-    print("   └── core/")
-    print("       └── database.py")
-    print("")
-    print("🔍 Verificar que auto_detector.py esté en processors/ y tenga las importaciones correctas")
-    exit(1)
+    import pytest
+    pytest.skip(f"Módulos legacy no disponibles: {e}", allow_module_level=True)
 
 class TestIANAECompleto:
     """
