@@ -21,6 +21,7 @@ from src.api.models import (
     NetworkResponse, StatsResponse,
     ErrorResponse, HealthResponse,
     FeedbackRequest, FeedbackResponse,
+    MetricsResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -426,6 +427,87 @@ async def submit_feedback(body: FeedbackRequest):
         fuerza_despues=round(fuerza_despues, 4),
         mensaje=mensaje,
     )
+
+
+# --- Metrics ---
+
+def _calcular_metricas(sistema) -> dict:
+    """Calcula metricas internas del sistema."""
+    fuerzas = [d.get("fuerza", 1.0) for d in sistema.conceptos.values()]
+    activaciones_total = sum(d.get("activaciones", 0) for d in sistema.conceptos.values())
+    debiles = sum(1 for f in fuerzas if f < 0.1)
+
+    categorias = {}
+    for cat, miembros in sistema.categorias.items():
+        categorias[cat] = len(miembros)
+
+    memoria_regs = 0
+    if hasattr(sistema, "memoria") and hasattr(sistema.memoria, "registros"):
+        memoria_regs = len(sistema.memoria.registros)
+
+    return {
+        "conceptos_total": len(sistema.conceptos),
+        "aristas_total": sistema.grafo.number_of_edges(),
+        "activaciones_totales": activaciones_total,
+        "edad_sistema": sistema.metricas.get("edad", 0),
+        "ciclos_pensamiento": sistema.metricas.get("ciclos_pensamiento", 0),
+        "categorias": categorias,
+        "fuerza_media": round(sum(fuerzas) / len(fuerzas), 4) if fuerzas else 0.0,
+        "fuerza_min": round(min(fuerzas), 4) if fuerzas else 0.0,
+        "fuerza_max": round(max(fuerzas), 4) if fuerzas else 0.0,
+        "conceptos_debiles": debiles,
+        "memoria_registros": memoria_regs,
+    }
+
+
+@app.get("/api/v1/metrics", response_model=MetricsResponse, tags=["system"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_metrics():
+    """Metricas del sistema en formato JSON."""
+    sistema = get_sistema()
+    return MetricsResponse(**_calcular_metricas(sistema))
+
+
+@app.get("/metrics", tags=["system"])
+async def get_metrics_prometheus():
+    """Metricas en formato Prometheus text exposition."""
+    from fastapi.responses import PlainTextResponse
+
+    sistema = get_sistema()
+    m = _calcular_metricas(sistema)
+
+    lines = [
+        "# HELP ianae_conceptos_total Number of concepts in the system",
+        "# TYPE ianae_conceptos_total gauge",
+        f"ianae_conceptos_total {m['conceptos_total']}",
+        "# HELP ianae_aristas_total Number of edges in the graph",
+        "# TYPE ianae_aristas_total gauge",
+        f"ianae_aristas_total {m['aristas_total']}",
+        "# HELP ianae_activaciones_totales Total activations across all concepts",
+        "# TYPE ianae_activaciones_totales counter",
+        f"ianae_activaciones_totales {m['activaciones_totales']}",
+        "# HELP ianae_edad_sistema System age in cycles",
+        "# TYPE ianae_edad_sistema counter",
+        f"ianae_edad_sistema {m['edad_sistema']}",
+        "# HELP ianae_ciclos_pensamiento Thought cycles completed",
+        "# TYPE ianae_ciclos_pensamiento counter",
+        f"ianae_ciclos_pensamiento {m['ciclos_pensamiento']}",
+        "# HELP ianae_fuerza_media Average concept strength",
+        "# TYPE ianae_fuerza_media gauge",
+        f"ianae_fuerza_media {m['fuerza_media']}",
+        "# HELP ianae_conceptos_debiles Concepts with strength below 0.1",
+        "# TYPE ianae_conceptos_debiles gauge",
+        f"ianae_conceptos_debiles {m['conceptos_debiles']}",
+        "# HELP ianae_memoria_registros Memory association records",
+        "# TYPE ianae_memoria_registros gauge",
+        f"ianae_memoria_registros {m['memoria_registros']}",
+    ]
+
+    for cat, count in m["categorias"].items():
+        safe_cat = cat.replace(" ", "_").replace("-", "_")
+        lines.append(f'ianae_categoria_conceptos{{categoria="{safe_cat}"}} {count}')
+
+    return PlainTextResponse("\n".join(lines) + "\n", media_type="text/plain")
 
 
 # --- Entry point ---

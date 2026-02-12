@@ -1,4 +1,5 @@
 # nucleo_lucas.py - IANAE adaptado para proyectos de Lucas
+import logging
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -8,6 +9,8 @@ import json
 import os
 import time
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 from src.core.indice_espacial import IndiceEspacial
 from src.core.persistencia import PersistenciaVectores
 from src.core.versionado import VersionadoEstado
@@ -128,7 +131,7 @@ class ConceptosLucas:
         """
         Crea la base conceptual específica de Lucas con todos sus proyectos y tecnologías
         """
-        print("🔥 Creando universo conceptual de Lucas...")
+        logger.info("Creando universo conceptual de Lucas...")
         
         # === TECNOLOGÍAS CORE ===
         tecnologias = {
@@ -190,14 +193,14 @@ class ConceptosLucas:
             self.categorias[datos['categoria']].append(nombre)
             conceptos_creados.append(nombre)
             
-        print(f"✅ Creados {len(conceptos_creados)} conceptos base")
+        logger.info("Creados %d conceptos base", len(conceptos_creados))
         return conceptos_creados
     
     def crear_relaciones_lucas(self):
         """
         Establece relaciones específicas basadas en nuestros proyectos reales
         """
-        print("🔗 Estableciendo relaciones de proyectos reales...")
+        logger.info("Estableciendo relaciones de proyectos reales...")
         
         # === RELACIONES PROYECTO TACÓGRAFOS ===
         relaciones_tacografos = [
@@ -277,7 +280,7 @@ class ConceptosLucas:
                 self.relacionar(c1, c2, fuerza=fuerza)
                 relaciones_creadas += 1
                 
-        print(f"✅ Creadas {relaciones_creadas} relaciones específicas")
+        logger.info("Creadas %d relaciones especificas", relaciones_creadas)
         return relaciones_creadas
     
     def añadir_concepto(self, nombre, atributos=None, incertidumbre=None, categoria='emergentes'):
@@ -376,7 +379,7 @@ class ConceptosLucas:
         if proyecto not in self.conceptos:
             return f"Proyecto '{proyecto}' no encontrado"
             
-        print(f"🔍 Explorando proyecto: {proyecto}")
+        logger.debug("Explorando proyecto: %s", proyecto)
         
         # Activar el proyecto
         resultado = self.activar(proyecto, pasos=profundidad, temperatura=0.15)
@@ -414,7 +417,7 @@ class ConceptosLucas:
         if len(self.historial_activaciones) < 3:
             return "Necesario más historial para detectar emergencias"
             
-        print("🌟 Detectando patrones emergentes...")
+        logger.debug("Detectando patrones emergentes...")
         
         # Analizar últimas activaciones
         ultimas_activaciones = self.historial_activaciones[-5:]
@@ -560,36 +563,21 @@ class ConceptosLucas:
         """
         Genera un informe específico del estado del universo conceptual de Lucas
         """
-        print("📊 INFORME DEL UNIVERSO CONCEPTUAL DE LUCAS")
-        print("=" * 50)
-        
-        # Métricas generales
-        print(f"Conceptos totales: {len(self.conceptos)}")
-        print(f"Relaciones totales: {self.grafo.number_of_edges()}")
-        print(f"Edad del sistema: {self.metricas['edad']} ciclos")
-        print(f"Proyectos referenciados: {self.metricas['proyectos_referenciados']}")
-        print(f"Emergencias detectadas: {self.metricas['emergencias_detectadas']}")
-        print()
-        
-        # Por categorías
-        print("📁 CONCEPTOS POR CATEGORÍA:")
+        logger.info("INFORME DEL UNIVERSO CONCEPTUAL")
+        logger.info("Conceptos=%d, Relaciones=%d, Edad=%d ciclos",
+                     len(self.conceptos), self.grafo.number_of_edges(), self.metricas['edad'])
+        logger.info("Proyectos referenciados=%d, Emergencias=%d",
+                     self.metricas['proyectos_referenciados'], self.metricas['emergencias_detectadas'])
+
         for categoria, conceptos in self.categorias.items():
             if conceptos:
-                print(f"  {categoria.replace('_', ' ').title()}: {len(conceptos)}")
-                # Mostrar los más activos de cada categoría
-                conceptos_activos = [(c, self.conceptos[c]['activaciones']) for c in conceptos]
-                conceptos_activos.sort(key=lambda x: x[1], reverse=True)
-                if conceptos_activos:
-                    print(f"    Más activo: {conceptos_activos[0][0]} ({conceptos_activos[0][1]} activaciones)")
-        print()
-        
-        # Conceptos más conectados
-        print("🔗 CONCEPTOS MÁS CONECTADOS:")
+                logger.info("  Categoria %s: %d conceptos", categoria, len(conceptos))
+
         grados = dict(self.grafo.degree())
         conceptos_por_grado = sorted(grados.items(), key=lambda x: x[1], reverse=True)
         for concepto, grado in conceptos_por_grado[:5]:
             categoria = self.conceptos[concepto]['categoria']
-            print(f"  {concepto} ({categoria}): {grado} conexiones")
+            logger.info("  Top: %s (%s) = %d conexiones", concepto, categoria, grado)
         
         return True
     
@@ -793,7 +781,7 @@ class ConceptosLucas:
             return True
         
         except Exception as e:
-            print(f"Error al guardar: {e}")
+            logger.error("Error al guardar: %s", e)
             return False
     
     @classmethod
@@ -801,7 +789,7 @@ class ConceptosLucas:
         """Carga el sistema desde un archivo guardado"""
         try:
             if not os.path.exists(ruta):
-                print(f"El archivo {ruta} no existe")
+                logger.warning("Archivo %s no existe", ruta)
                 return None
                 
             with open(ruta, 'r', encoding='utf-8') as f:
@@ -851,7 +839,7 @@ class ConceptosLucas:
             return sistema
             
         except Exception as e:
-            print(f"Error al cargar: {e}")
+            logger.error("Error al cargar: %s", e)
             return None
     
     def ciclo_vital(self, num_ciclos=1, auto_mod=True, visualizar_cada=5):

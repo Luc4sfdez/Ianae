@@ -2,9 +2,12 @@
 # Scope: src/nlp/ (Worker-NLP)
 # NO modifica nucleo.py - solo importa ConceptosLucas
 
+import logging
 import numpy as np
 from collections import Counter
 from typing import List, Dict, Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractorConceptos:
@@ -34,17 +37,17 @@ class ExtractorConceptos:
             self._intentar_spacy()
             self._intentar_transformers()
             if self.nlp is None and self.modelo_embeddings is None:
-                print("[NLP] Modo básico: no se encontró spaCy ni sentence-transformers")
+                logger.info("NLP modo basico: no se encontro spaCy ni sentence-transformers")
                 self.modo = "basico"
             elif self.nlp and self.modelo_embeddings:
                 self.modo = "completo"
-                print("[NLP] Modo completo: spaCy + sentence-transformers")
+                logger.info("NLP modo completo: spaCy + sentence-transformers")
             elif self.nlp:
                 self.modo = "spacy"
-                print("[NLP] Modo spaCy (sin embeddings de transformers)")
+                logger.info("NLP modo spaCy (sin embeddings de transformers)")
             else:
                 self.modo = "transformers"
-                print("[NLP] Modo transformers (sin análisis estructural spaCy)")
+                logger.info("NLP modo transformers (sin analisis estructural spaCy)")
         elif modo == "spacy":
             self._intentar_spacy()
         elif modo == "transformers":
@@ -57,11 +60,11 @@ class ExtractorConceptos:
             for modelo in ["es_core_news_md", "es_core_news_sm", "es_core_news_lg"]:
                 try:
                     self.nlp = spacy.load(modelo)
-                    print(f"[NLP] spaCy cargado: {modelo}")
+                    logger.info("spaCy cargado: %s", modelo)
                     return
                 except OSError:
                     continue
-            print("[NLP] spaCy instalado pero sin modelo español")
+            logger.info("spaCy instalado pero sin modelo espanol")
         except ImportError:
             pass
 
@@ -72,11 +75,11 @@ class ExtractorConceptos:
             self.modelo_embeddings = SentenceTransformer(
                 "paraphrase-multilingual-MiniLM-L12-v2"
             )
-            print("[NLP] sentence-transformers cargado: paraphrase-multilingual-MiniLM-L12-v2")
+            logger.info("sentence-transformers cargado: paraphrase-multilingual-MiniLM-L12-v2")
         except ImportError:
             pass
         except Exception as e:
-            print(f"[NLP] Error cargando sentence-transformers: {e}")
+            logger.warning("Error cargando sentence-transformers: %s", e)
 
     def extraer_conceptos(self, texto: str, max_conceptos: int = 10) -> List[Dict]:
         """

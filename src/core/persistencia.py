@@ -1,9 +1,12 @@
+import logging
 import sqlite3
 import numpy as np
 import json
 import io
 import os
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class PersistenciaVectores:
@@ -77,7 +80,7 @@ class PersistenciaVectores:
             return True
             
         except Exception as e:
-            print(f"Error guardando vector {id_vector}: {e}")
+            logger.error("Error guardando vector %s: %s", id_vector, e)
             return False
     
     def cargar_vector(self, id_vector):
@@ -113,7 +116,7 @@ class PersistenciaVectores:
                 return vector, metadata
                 
         except Exception as e:
-            print(f"Error cargando vector {id_vector}: {e}")
+            logger.error("Error cargando vector %s: %s", id_vector, e)
             return None, None
     
     def listar_vectores(self, limite=100):
@@ -142,7 +145,7 @@ class PersistenciaVectores:
                 return resultados
                 
         except Exception as e:
-            print(f"Error listando vectores: {e}")
+            logger.error("Error listando vectores: %s", e)
             return []
     
     def eliminar_vector(self, id_vector):
@@ -165,7 +168,7 @@ class PersistenciaVectores:
                 return cursor.rowcount > 0
                 
         except Exception as e:
-            print(f"Error eliminando vector {id_vector}: {e}")
+            logger.error("Error eliminando vector %s: %s", id_vector, e)
             return False
     
     def contar_vectores(self):
@@ -181,7 +184,7 @@ class PersistenciaVectores:
                 return cursor.fetchone()[0]
                 
         except Exception as e:
-            print(f"Error contando vectores: {e}")
+            logger.error("Error contando vectores: %s", e)
             return 0
     
     def limpiar_tabla(self):
@@ -198,5 +201,5 @@ class PersistenciaVectores:
                 return True
                 
         except Exception as e:
-            print(f"Error limpiando tabla: {e}")
+            logger.error("Error limpiando tabla: %s", e)
             return False

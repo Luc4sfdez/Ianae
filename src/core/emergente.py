@@ -1,4 +1,5 @@
 # emergente_lucas.py - Pensamiento Emergente adaptado para Lucas
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 try:
@@ -8,6 +9,8 @@ except ImportError:
 import random
 import time
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 class PensamientoLucas:
     """
@@ -47,12 +50,12 @@ class PensamientoLucas:
         if proyecto not in self.sistema.conceptos:
             return f"Proyecto '{proyecto}' no encontrado en el universo conceptual"
             
-        print(f"🚀 Explorando pensamiento emergente desde: {proyecto}")
+        logger.debug("Explorando pensamiento emergente desde: %s", proyecto)
         
         # Determinar contexto automáticamente si no se proporciona
         if not contexto:
             contexto = self._detectar_contexto_proyecto(proyecto)
-            print(f"📍 Contexto detectado: {contexto}")
+            logger.debug("Contexto detectado: %s", contexto)
         
         # Activar proyecto inicial con parámetros optimizados para Lucas
         resultado = self.sistema.activar(
@@ -348,8 +351,7 @@ class PensamientoLucas:
         # Seleccionar concepto inicial
         concepto_inicial = np.random.choice(conceptos_contexto, p=probabilidades)
         
-        print(f"🎨 Generando pensamiento contextual: {contexto}")
-        print(f"🌱 Semilla: {concepto_inicial}")
+        logger.debug("Generando pensamiento contextual: %s, semilla: %s", contexto, concepto_inicial)
         
         # Generar cadena de pensamiento
         cadena_conceptos = [concepto_inicial]
@@ -450,9 +452,7 @@ class PensamientoLucas:
                 return "Se necesitan al menos 2 proyectos para convergencia"
             proyectos_input = random.sample(proyectos_disponibles, min(3, len(proyectos_disponibles)))
         
-        print(f"🔬 EXPERIMENTO DE CONVERGENCIA DE PROYECTOS")
-        print(f"📁 Proyectos: {', '.join(proyectos_input)}")
-        print("=" * 50)
+        logger.debug("Experimento convergencia: %s", ", ".join(proyectos_input))
         
         # Activar todos los proyectos simultáneamente
         activaciones_convergentes = {}
@@ -559,7 +559,7 @@ class PensamientoLucas:
         Detecta oportunidades de automatización en los proyectos de Lucas
         (uno de sus superpoderes favoritos)
         """
-        print("🤖 DETECTANDO OPORTUNIDADES DE AUTOMATIZACIÓN...")
+        logger.debug("Detectando oportunidades de automatizacion")
         
         oportunidades = []
         
@@ -654,7 +654,7 @@ class PensamientoLucas:
         """
         Analiza los patrones específicos de pensamiento y trabajo de Lucas
         """
-        print("🧠 ANALIZANDO PATRONES PERSONALES DE LUCAS...")
+        logger.debug("Analizando patrones personales")
         
         # Activar concepto de Lucas para ver su universo conceptual
         resultado = self.sistema.activar('Lucas', pasos=4, temperatura=0.2)
@@ -936,11 +936,11 @@ class PensamientoLucas:
                     
                     f.write("\n" + "-" * 50 + "\n")
                 
-            print(f"✅ Insights exportados a: {archivo}")
+            logger.info("Insights exportados a: %s", archivo)
             return True
-            
+
         except Exception as e:
-            print(f"❌ Error al exportar: {e}")
+            logger.error("Error al exportar insights: %s", e)
             return False
 
 # Función de prueba rápida

@@ -448,3 +448,48 @@ class TestFeedback:
                 "concepto": "Python", "tipo": "ruido", "intensidad": 1.0
             })
         assert r.json()["fuerza_despues"] >= 0.05
+
+
+# ==================== Metrics ====================
+
+class TestMetrics:
+    def test_metrics_json(self, client):
+        r = client.get("/api/v1/metrics")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["conceptos_total"] == 3
+        assert data["aristas_total"] == 2
+        assert data["fuerza_media"] > 0
+        assert isinstance(data["categorias"], dict)
+
+    def test_metrics_prometheus(self, client):
+        r = client.get("/metrics")
+        assert r.status_code == 200
+        text = r.text
+        assert "ianae_conceptos_total 3" in text
+        assert "ianae_aristas_total 2" in text
+        assert "ianae_fuerza_media" in text
+        assert "# HELP" in text
+        assert "# TYPE" in text
+
+    def test_metrics_prometheus_categorias(self, client):
+        r = client.get("/metrics")
+        text = r.text
+        assert 'ianae_categoria_conceptos{categoria="tecnologias"} 2' in text
+        assert 'ianae_categoria_conceptos{categoria="conceptos_ianae"} 1' in text
+
+    def test_metrics_json_fields(self, client):
+        r = client.get("/api/v1/metrics")
+        data = r.json()
+        expected_fields = [
+            "conceptos_total", "aristas_total", "activaciones_totales",
+            "edad_sistema", "ciclos_pensamiento", "fuerza_media",
+            "fuerza_min", "fuerza_max", "conceptos_debiles", "memoria_registros",
+        ]
+        for field in expected_fields:
+            assert field in data, f"Falta campo: {field}"
+
+    def test_metrics_in_schema(self, client):
+        r = client.get("/openapi.json")
+        paths = r.json()["paths"]
+        assert "/api/v1/metrics" in paths

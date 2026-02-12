@@ -105,6 +105,20 @@ class FeedbackResponse(BaseModel):
     mensaje: str
 
 
+class MetricsResponse(BaseModel):
+    conceptos_total: int
+    aristas_total: int
+    activaciones_totales: int
+    edad_sistema: int
+    ciclos_pensamiento: int
+    categorias: Dict[str, int]
+    fuerza_media: float
+    fuerza_min: float
+    fuerza_max: float
+    conceptos_debiles: int
+    memoria_registros: int
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
