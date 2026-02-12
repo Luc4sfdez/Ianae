@@ -124,3 +124,36 @@ class HealthResponse(BaseModel):
     version: str
     conceptos: int
     modo_nlp: str
+
+
+# --- Insights Models ---
+
+class RecommendationsRequest(BaseModel):
+    concepto: Optional[str] = Field(None, description="Concepto base (None = global)")
+    max_resultados: int = Field(5, ge=1, le=20, description="Maximo de resultados")
+
+
+class PatternsResponse(BaseModel):
+    comunidades: List[List[str]]
+    puentes: List[Dict[str, Any]]
+    clusters_densos: List[Dict[str, Any]]
+    conceptos_aislados: List[str]
+    patrones_emergentes: str
+    candidatos_genesis: List[Dict[str, Any]]
+    narrativa: str
+
+
+class RecommendationsResponse(BaseModel):
+    explorar: List[Dict[str, Any]]
+    conectar: List[Dict[str, Any]]
+    automatizar: Optional[str] = None
+    convergencias: Optional[str] = None
+    narrativa: str
+
+
+class PredictiveResponse(BaseModel):
+    tendencias: List[Dict[str, Any]]
+    gaps_conocimiento: List[Dict[str, Any]]
+    proximas_tecnologias: List[Dict[str, Any]]
+    patrones_personales: Optional[str] = None
+    narrativa: str

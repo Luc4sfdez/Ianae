@@ -22,6 +22,8 @@ from src.api.models import (
     ErrorResponse, HealthResponse,
     FeedbackRequest, FeedbackResponse,
     MetricsResponse,
+    RecommendationsRequest, PatternsResponse,
+    RecommendationsResponse, PredictiveResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -508,6 +510,60 @@ async def get_metrics_prometheus():
         lines.append(f'ianae_categoria_conceptos{{categoria="{safe_cat}"}} {count}')
 
     return PlainTextResponse("\n".join(lines) + "\n", media_type="text/plain")
+
+
+# --- Insights ---
+
+_insights = None
+
+
+def get_insights():
+    """Retorna la instancia de InsightsEngine (lazy init)."""
+    global _insights
+    if _insights is None:
+        from src.core.insights import InsightsEngine
+        _insights = InsightsEngine(get_sistema())
+    return _insights
+
+
+def set_insights(engine):
+    """Permite inyectar InsightsEngine (para tests)."""
+    global _insights
+    _insights = engine
+
+
+@app.get("/api/v1/insights/patrones", response_model=PatternsResponse,
+         tags=["insights"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_patrones():
+    """Detecta patrones estructurales: comunidades, puentes, clusters."""
+    engine = get_insights()
+    return PatternsResponse(**engine.detectar_patrones())
+
+
+@app.post("/api/v1/insights/recomendaciones", response_model=RecommendationsResponse,
+          tags=["insights"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_recomendaciones(body: RecommendationsRequest):
+    """Genera recomendaciones de exploracion y conexion."""
+    engine = get_insights()
+    resultado = engine.generar_recomendaciones(
+        concepto=body.concepto,
+        max_resultados=body.max_resultados,
+    )
+    if body.concepto and body.concepto not in get_sistema().conceptos:
+        raise HTTPException(status_code=404,
+                            detail=f"Concepto '{body.concepto}' no encontrado")
+    return RecommendationsResponse(**resultado)
+
+
+@app.get("/api/v1/insights/predictivo", response_model=PredictiveResponse,
+         tags=["insights"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_predictivo():
+    """Analisis predictivo: tendencias, gaps, predicciones."""
+    engine = get_insights()
+    return PredictiveResponse(**engine.analisis_predictivo())
 
 
 # --- Entry point ---
