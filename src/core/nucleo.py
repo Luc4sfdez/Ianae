@@ -9,6 +9,7 @@ import os
 import time
 from datetime import datetime
 from src.core.indice_espacial import IndiceEspacial
+from src.core.persistencia import PersistenciaVectores
 
 class ConceptosLucas:
     """
@@ -26,6 +27,7 @@ class ConceptosLucas:
         self.incertidumbre_base = incertidumbre_base
         self.historial_activaciones = []
         self.indice = IndiceEspacial(dim_vector)
+        self.persistencia = PersistenciaVectores()
 
         # Métricas específicas para nuestro caso
         self.metricas = {
@@ -1006,6 +1008,57 @@ class ConceptosLucas:
 
         ref = self.conceptos[nombre_concepto]['actual']
         return self.indice.buscar_similares(ref, top_k=top_k, excluir_id=nombre_concepto)
+
+    def guardar_estado(self, nombre: str = "default") -> bool:
+        """
+        Guardar todos los conceptos actuales en SQLite.
+
+        Args:
+            nombre: prefijo para identificar este snapshot.
+
+        Returns:
+            True si se guardó correctamente.
+        """
+        try:
+            for concepto_nombre, data in self.conceptos.items():
+                clave = f"{nombre}::{concepto_nombre}"
+                meta = {
+                    "categoria": data.get("categoria", "emergentes"),
+                    "fuerza": data.get("fuerza", 1.0),
+                    "activaciones": data.get("activaciones", 0),
+                    "snapshot": nombre,
+                }
+                self.persistencia.guardar_vector(clave, data["actual"], meta)
+            return True
+        except Exception:
+            return False
+
+    def cargar_estado(self, nombre: str = "default") -> bool:
+        """
+        Cargar conceptos desde SQLite y restaurar vectores.
+
+        Args:
+            nombre: prefijo del snapshot a cargar.
+
+        Returns:
+            True si se cargó al menos un concepto.
+        """
+        try:
+            items = self.persistencia.listar_vectores(limite=10000)
+            prefix = f"{nombre}::"
+            cargados = 0
+            for clave, meta, _ts in items:
+                if not clave.startswith(prefix):
+                    continue
+                concepto_nombre = clave[len(prefix):]
+                vec, _ = self.persistencia.cargar_vector(clave)
+                if vec is not None and concepto_nombre in self.conceptos:
+                    self.conceptos[concepto_nombre]["actual"] = vec
+                    self.indice.actualizar(concepto_nombre, vec)
+                    cargados += 1
+            return cargados > 0
+        except Exception:
+            return False
 
 
 # Función de inicialización específica para Lucas
