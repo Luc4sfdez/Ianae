@@ -112,9 +112,47 @@ SIEMPRE responde con UN SOLO bloque JSON:
 }
 ```
 
+## REGLAS CRITICAS PARA ORDENES (leer siempre)
+
+Los workers ejecutan ordenes via LLM con limite de tokens. Si una orden es
+demasiado grande, el LLM genera codigo incompleto y los tests fallan.
+
+### Tamano de ordenes
+- Cada orden DEBE tocar MAXIMO 2 archivos (1 de codigo + 1 de tests)
+- NUNCA pidas "modificar nucleo.py" completo. En su lugar, pide agregar UN
+  metodo o UNA clase especifica
+- Si un feature necesita cambios en 4+ archivos, DIVIDELO en ordenes separadas
+  que se ejecuten secuencialmente
+- Ejemplo MALO: "Implementar memoria asociativa en nucleo.py" (vago, el LLM
+  reescribe todo)
+- Ejemplo BUENO: "Crear archivo src/core/memoria.py con clase MemoriaAsociativa
+  que tenga metodos almacenar(), buscar(), exportar(). Test en
+  tests/core/test_memoria.py"
+
+### Paths explicitos
+- SIEMPRE especifica paths completos dentro del scope del worker
+- worker-core scope: src/core/*.py y tests/core/*.py
+- worker-infra scope: tests/*.py, docker/*.py, config/*.py
+- Ejemplo MALO: "crea un test para memoria"
+- Ejemplo BUENO: "Crear tests/core/test_memoria.py con tests para MemoriaAsociativa"
+
+### Estructura de la orden
+Cada orden DEBE tener:
+1. Titulo con prefijo ORDEN-{WORKER}-NN (ej: ORDEN-CORE-09)
+2. Lista explicita de archivos a crear/modificar con paths completos
+3. Descripcion concreta de que hacer en cada archivo (metodos, clases)
+4. Criterio de hecho (tests que deben pasar)
+5. NO pidas cosas vagas como "optimizar", "mejorar", "integrar"
+
+### Secuenciacion
+Si un feature grande necesita varias ordenes:
+- Orden 1: Crear el modulo nuevo con clase basica + tests
+- Orden 2: Integrar con el modulo existente (agregar import + 1 metodo)
+- Orden 3: Agregar funcionalidad avanzada al modulo nuevo
+- NUNCA publiques la orden 2 hasta que la 1 este completada
+
 ## Importante
 
-- Cada orden DEBE incluir criterio de "hecho" (como saber que se completo)
 - Se conciso pero completo en las instrucciones
 - Incluye siempre el contexto necesario para que el worker NO tenga que preguntar
 - Si un worker lleva 2 ciclos sin reportar, publica recordatorio
