@@ -1,14 +1,30 @@
+# === Stage 1: Builder ===
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt && \
+    pip install --no-cache-dir --prefix=/install \
+    pytest pytest-cov pytest-timeout pytest-asyncio pytest-xdist hypothesis
+
+# === Stage 2: Test runner ===
 FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-COPY pyproject.toml .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir pytest pytest-cov pytest-timeout
+COPY --from=builder /install /usr/local
 
 COPY src/ ./src/
 COPY tests/ ./tests/
-COPY config/ ./config/
+COPY pyproject.toml .
 
-CMD ["pytest", "tests/", "--cov=src/core", "--cov-report=term-missing", "-v"]
+ENV PYTHONUNBUFFERED=1
+
+CMD ["pytest", "tests/", \
+     "--cov=src/core", \
+     "--cov-report=term-missing", \
+     "--cov-report=xml:/app/coverage.xml", \
+     "-v", \
+     "--timeout=60", \
+     "-x"]

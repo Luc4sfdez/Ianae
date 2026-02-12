@@ -1,4 +1,4 @@
-name: Tests
+name: CI
 
 on:
   push:
@@ -25,22 +25,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-timeout
+          pip install pytest pytest-cov pytest-timeout pytest-asyncio hypothesis
 
       - name: Run tests with coverage
         run: |
-          pytest tests/core/test_nucleo_*.py \
+          pytest tests/ \
             --cov=src/core \
             --cov-report=term-missing \
             --cov-report=xml \
             -v \
-            -m "not slow" \
             --timeout=60 \
-            --ignore=tests/core/test_ianae.py \
-            --ignore=tests/core/test_ianae_lucas.py \
-            --ignore=tests/core/test_ianae_original.py
+            -m "not slow"
 
-      - name: Verify nucleo.py coverage > 80%
+      - name: Verify nucleo.py coverage >= 80%
         run: |
           python -c "
           import xml.etree.ElementTree as ET
@@ -54,4 +51,41 @@ jobs:
                   print(f'nucleo.py coverage: {pct:.1f}%')
                   assert pct >= 80, f'Coverage {pct:.1f}% < 80%'
                   break
+          "
+
+      - name: Upload coverage report
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build IANAE image
+        run: docker build -f docker/Dockerfile -t ianae:latest .
+
+      - name: Build docs-service image
+        run: docker build -f docker/Dockerfile.docs-service -t ianae-docs:latest .
+
+      - name: Build test image
+        run: docker build -f docker/Dockerfile.tests -t ianae-tests:latest .
+
+      - name: Run tests in Docker
+        run: docker run --rm ianae-tests:latest
+
+      - name: Verify IANAE image starts
+        run: |
+          docker run --rm ianae:latest python -c "
+          from src.core.nucleo import ConceptosLucas
+          s = ConceptosLucas(dim_vector=15)
+          s.añadir_concepto('test', atributos=__import__('numpy').ones(15))
+          assert len(s.conceptos) == 1
+          print('IANAE OK')
           "

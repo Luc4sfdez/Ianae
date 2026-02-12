@@ -9,6 +9,10 @@ services:
       - ianae-data:/app/data
     environment:
       - IANAE_ENV=production
+      - IANAE_DATA_DIR=/app/data
+    networks:
+      - ianae-net
+    restart: unless-stopped
 
   docs-service:
     build:
@@ -20,6 +24,15 @@ services:
       - docs-data:/app/data
     environment:
       - DOCS_DB_PATH=/app/data/docs.db
+    networks:
+      - ianae-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:25500/api/v1/context/snapshot')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   tests:
     build:
@@ -27,7 +40,13 @@ services:
       dockerfile: docker/Dockerfile.tests
     profiles:
       - test
+    networks:
+      - ianae-net
 
 volumes:
   ianae-data:
   docs-data:
+
+networks:
+  ianae-net:
+    driver: bridge

@@ -1,24 +1,34 @@
-FROM python:3.11-slim
+# === Stage 1: Builder ===
+FROM python:3.11-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar y instalar dependencias primero (mejor cache)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Copiar código fuente
+# === Stage 2: Runtime ===
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+
 COPY src/ ./src/
-COPY config/ ./config/
-COPY data/ ./data/
+COPY pyproject.toml .
 
-# Crear directorio para datos persistentes
 RUN mkdir -p /app/data
+
+ENV PYTHONUNBUFFERED=1
+ENV IANAE_ENV=production
+ENV IANAE_DATA_DIR=/app/data
 
 EXPOSE 8000
 
-CMD ["python", "-m", "src.core.nucleo"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "from src.core.nucleo import ConceptosLucas; print('ok')" || exit 1
+
+CMD ["python", "-c", "from src.core.nucleo import ConceptosLucas; s = ConceptosLucas(); print(f'IANAE running — {s.dim_vector}d vectors')"]
