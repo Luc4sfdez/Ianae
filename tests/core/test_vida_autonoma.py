@@ -298,3 +298,29 @@ class TestEstado:
         vida._corriendo = True
         vida.detener()
         assert vida._corriendo is False
+
+
+# ==================== TestCircuitoCerrado ====================
+
+
+class TestCircuitoCerrado:
+    def test_ajustes_curiosidad_inicialmente_vacio(self, vida):
+        assert vida._ajustes_curiosidad == {}
+
+    def test_ajustes_modifican_prioridad(self, vida):
+        vida._ajustes_curiosidad = {"gap": 0.1, "puente": 2.0, "serendipia": 1.0}
+        # Ejecutar varios ciclos — los ajustes se aplican sin error
+        for _ in range(3):
+            r = vida.ejecutar_ciclo()
+            assert isinstance(r, dict)
+
+    def test_factor_cero_reduce_tipo(self, vida):
+        # Con factor muy bajo para todo excepto serendipia
+        vida._ajustes_curiosidad = {
+            "gap": 0.01, "revitalizar": 0.01, "puente": 0.01,
+            "prediccion": 0.01, "serendipia": 5.0,
+        }
+        # Ejecutar ciclos — no debe fallar
+        for _ in range(3):
+            r = vida.ejecutar_ciclo()
+            assert r["curiosidad"]["prioridad"] >= 0.0

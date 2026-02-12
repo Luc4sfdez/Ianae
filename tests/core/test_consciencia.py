@@ -310,3 +310,22 @@ class TestCicloConsciente:
             r = consciencia.ciclo_consciente()
             assert isinstance(r, dict)
             assert r["vida"]["ciclo"] > 0
+
+
+# ==================== TestCircuitoCerrado ====================
+
+
+class TestCircuitoCerrado:
+    def test_cerrar_circuito_retorna_ajustes(self, consciencia):
+        aj = consciencia.cerrar_circuito()
+        assert "gap" in aj
+        assert "serendipia" in aj
+
+    def test_cerrar_circuito_aplica_a_vida(self, consciencia):
+        consciencia.cerrar_circuito()
+        assert len(consciencia.vida._ajustes_curiosidad) == 5
+
+    def test_ciclo_consciente_aplica_ajustes(self, consciencia):
+        consciencia.ciclo_consciente()
+        # Despues del ciclo, los ajustes deben estar aplicados
+        assert len(consciencia.vida._ajustes_curiosidad) == 5

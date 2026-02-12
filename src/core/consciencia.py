@@ -516,6 +516,12 @@ class Consciencia:
 
         return {k: round(v, 4) for k, v in ajustes.items()}
 
+    def cerrar_circuito(self) -> Dict[str, float]:
+        """Aplica los ajustes de curiosidad a VidaAutonoma — cierra el loop."""
+        ajustes = self.ajustar_curiosidad()
+        self.vida._ajustes_curiosidad = ajustes
+        return ajustes
+
     # ==================================================================
     # CICLO CONSCIENTE — el ciclo de vida con auto-consciencia
     # ==================================================================
@@ -529,9 +535,11 @@ class Consciencia:
         cap = self.capilaridad()
         cor = self.corrientes()
         sup = self.superficie()
-        ajustes = self.ajustar_curiosidad()
 
-        # 2. Ejecutar ciclo vital (compone, no modifica)
+        # 2. Cerrar circuito: ajustes -> VidaAutonoma (ANTES del ciclo)
+        ajustes = self.cerrar_circuito()
+
+        # 3. Ejecutar ciclo vital (ahora con ajustes aplicados)
         resultado_vida = self.vida.ejecutar_ciclo()
 
         # 3. Narrar

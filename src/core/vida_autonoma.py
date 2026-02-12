@@ -63,6 +63,9 @@ class VidaAutonoma:
         self._corriendo = False
         self._ciclo_actual = 0
 
+        # Ajustes externos de curiosidad (circuito cerrado con Consciencia)
+        self._ajustes_curiosidad: Dict[str, float] = {}
+
         # Lazy: se crean solo si vivir() arranca
         self._consolidador = None
         self._recovery = None
@@ -256,9 +259,10 @@ class VidaAutonoma:
                 "prioridad": 0.5,
             })
 
-        # Elegir con ruido
+        # Elegir con ruido + ajustes externos (circuito cerrado)
         for c in candidatos:
-            c["prioridad"] = max(0.0, c["prioridad"] + random.uniform(-0.1, 0.1))
+            factor = self._ajustes_curiosidad.get(c["tipo"], 1.0)
+            c["prioridad"] = max(0.0, c["prioridad"] * factor + random.uniform(-0.1, 0.1))
 
         mejor = max(candidatos, key=lambda x: x["prioridad"])
         return mejor
