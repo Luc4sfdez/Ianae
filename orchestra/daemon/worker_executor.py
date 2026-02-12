@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import logging
 from pathlib import Path
+import json
 from typing import List, Dict, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +37,8 @@ from config import (
     WORKER_CHECK_INTERVAL,
     WORKER_MAX_TOKENS,
     WORKER_MAX_FILES,
+    WORKER_MAX_RETRIES,
+    WORKER_RETRY_DELAY,
     WORKER_SCOPES,
 )
 
@@ -131,8 +134,14 @@ class WorkerExecutor:
         # Backup para rollback
         self._backups: Dict[str, bytes] = {}
 
-        # IDs de ordenes ya procesadas (evita loop infinito)
+        # Tracking de reintentos: {doc_id: attempts_count}
+        self._attempts: Dict[int, int] = {}
+
+        # IDs de ordenes completadas o permanentemente fallidas (no reintentar)
         self._processed_ids: set = set()
+
+        # Titulos ya vistos (anti-duplicados: si hay 2 ordenes con mismo titulo, skip la segunda)
+        self._seen_titles: set = set()
 
         logger.info(
             f"WorkerExecutor inicializado",
@@ -142,6 +151,31 @@ class WorkerExecutor:
             test_cmd=self.test_cmd,
             providers=self.llm_chain.available_providers,
         )
+
+    # Tarifas por 1M tokens (USD)
+    COST_RATES = {
+        "deepseek": {"input": 0.27, "output": 1.10},
+        "qwen": {"input": 0.80, "output": 2.00},
+        "anthropic": {"input": 3.00, "output": 15.00},
+    }
+
+    def _estimate_cost(self, provider: str, input_tokens: int, output_tokens: int) -> float:
+        """Estimar costo en USD de una llamada LLM."""
+        rates = self.COST_RATES.get(provider, {"input": 3.0, "output": 15.0})
+        cost = (input_tokens * rates["input"] + output_tokens * rates["output"]) / 1_000_000
+        return round(cost, 6)
+
+    def _cost_block(self, provider: str, model: str, input_tokens: int, output_tokens: int) -> str:
+        """Generar bloque JSON de costos para incluir en reportes."""
+        cost_usd = self._estimate_cost(provider, input_tokens, output_tokens)
+        data = {
+            "provider": provider,
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": cost_usd,
+        }
+        return f"\n\n<!-- COST_DATA: {json.dumps(data)} -->"
 
     def _load_system_prompt(self) -> str:
         """Construir system prompt enfocado en formato de salida."""
@@ -467,16 +501,21 @@ class WorkerExecutor:
 
         return [{"role": "user", "content": user_message}]
 
-    def execute_order(self, orden: Dict) -> bool:
+    def execute_order(self, orden: Dict, attempt: int = 1) -> bool:
         """
         Ejecutar una orden completa: LLM -> aplicar -> tests -> reportar.
+
+        Args:
+            orden: Documento de la orden.
+            attempt: Numero de intento (1-based).
 
         Returns:
             True si la orden se completo exitosamente.
         """
         doc_id = orden.get("id")
         title = orden.get("title", "Sin titulo")
-        logger.info(f"Ejecutando orden #{doc_id}: {title}")
+        max_retries = WORKER_MAX_RETRIES
+        logger.info(f"Ejecutando orden #{doc_id}: {title} (intento {attempt}/{max_retries + 1})")
 
         # 1. Marcar como in_progress
         mark_as_in_progress(doc_id, self.worker_name, message="Executor procesando")
@@ -504,7 +543,8 @@ class WorkerExecutor:
             self.docs_client.publish_worker_report(
                 worker_name=self.worker_name,
                 title=f"FALLO: {title[:50]}",
-                content=f"# Error al consultar LLM\n\n{error_msg}",
+                content=f"# Error al consultar LLM\n\n{error_msg}"
+                        f"\n\n<!-- COST_DATA: {json.dumps({'provider':'none','model':'none','input_tokens':0,'output_tokens':0,'cost_usd':0})} -->",
                 tags=["error", "llm"],
             )
             return False
@@ -513,20 +553,27 @@ class WorkerExecutor:
         files, report = parse_llm_file_blocks(llm_response.text)
 
         if not files:
-            logger.warning("LLM no genero archivos")
-            mark_as_blocked(
-                doc_id, self.worker_name,
-                message="LLM no genero bloques de archivo validos",
+            logger.warning(f"LLM no genero archivos (intento {attempt})")
+            cost_meta = self._cost_block(
+                llm_response.provider, llm_response.model,
+                llm_response.input_tokens, llm_response.output_tokens,
             )
-            self.docs_client.publish_worker_report(
-                worker_name=self.worker_name,
-                title=f"FALLO: {title[:50]} — sin archivos",
-                content=(
-                    f"# LLM no genero archivos\n\n"
-                    f"## Respuesta raw\n\n```\n{llm_response.text[:2000]}\n```"
-                ),
-                tags=["error", "parsing"],
-            )
+            # Solo marcar blocked si ya no quedan reintentos
+            if attempt > max_retries:
+                mark_as_blocked(
+                    doc_id, self.worker_name,
+                    message=f"LLM no genero archivos tras {attempt} intentos",
+                )
+                self.docs_client.publish_worker_report(
+                    worker_name=self.worker_name,
+                    title=f"FALLO: {title[:50]} — sin archivos ({attempt} intentos)",
+                    content=(
+                        f"# LLM no genero archivos tras {attempt} intentos\n\n"
+                        f"## Ultima respuesta raw\n\n```\n{llm_response.text[:2000]}\n```"
+                        f"{cost_meta}"
+                    ),
+                    tags=["error", "parsing"],
+                )
             return False
 
         # 5. Aplicar archivos
@@ -548,6 +595,11 @@ class WorkerExecutor:
         # 6. Ejecutar tests
         tests_passed, test_output = self._run_tests()
 
+        cost_meta = self._cost_block(
+            llm_response.provider, llm_response.model,
+            llm_response.input_tokens, llm_response.output_tokens,
+        )
+
         if tests_passed:
             # 7a. Exito -> reportar completado
             report_content = (
@@ -558,6 +610,7 @@ class WorkerExecutor:
                 f"## Tests\n\n```\n{test_output[-1000:]}\n```\n\n"
                 f"## Provider\n\n{llm_response.provider} "
                 f"({llm_response.input_tokens}in/{llm_response.output_tokens}out)"
+                f"{cost_meta}"
             )
             mark_as_completed(
                 doc_id, self.worker_name,
@@ -576,33 +629,56 @@ class WorkerExecutor:
             logger.warning(f"Tests fallaron, haciendo rollback")
             self._rollback()
 
-            report_content = (
-                f"# Orden #{doc_id} fallida — tests no pasan\n\n"
-                f"## Archivos intentados\n\n{', '.join(applied)}\n\n"
-                f"## Output de tests\n\n```\n{test_output[-2000:]}\n```\n\n"
-                f"## Reporte del LLM\n\n{report}\n\n"
-                f"Los cambios fueron revertidos (rollback)."
-            )
-            mark_as_blocked(
-                doc_id, self.worker_name,
-                message=f"Tests fallaron. Rollback aplicado.",
-            )
-            self.docs_client.publish_worker_report(
-                worker_name=self.worker_name,
-                title=f"FALLO: {title[:50]} — tests no pasan",
-                content=report_content,
-                tags=["fallo", "tests"],
-            )
+            # Solo reportar fallo + block si ya no quedan reintentos
+            if attempt > max_retries:
+                report_content = (
+                    f"# Orden #{doc_id} fallida — tests no pasan ({attempt} intentos)\n\n"
+                    f"## Archivos intentados\n\n{', '.join(applied)}\n\n"
+                    f"## Output de tests\n\n```\n{test_output[-2000:]}\n```\n\n"
+                    f"## Reporte del LLM\n\n{report}\n\n"
+                    f"Los cambios fueron revertidos (rollback)."
+                    f"{cost_meta}"
+                )
+                mark_as_blocked(
+                    doc_id, self.worker_name,
+                    message=f"Tests fallaron tras {attempt} intentos. Rollback.",
+                )
+                self.docs_client.publish_worker_report(
+                    worker_name=self.worker_name,
+                    title=f"FALLO: {title[:50]} — tests no pasan ({attempt} intentos)",
+                    content=report_content,
+                    tags=["fallo", "tests"],
+                )
+            else:
+                logger.info(f"Tests fallaron intento {attempt}, reintentara")
             return False
 
+    def _normalize_title(self, title: str) -> str:
+        """Normalizar titulo para detectar duplicados."""
+        import re as _re
+        # Quitar numeros de orden, prefijos, y normalizar espacios
+        t = _re.sub(r'(?:Orden|ORDEN)[- ](?:CORE-)?#?\d+[a-z]?:?\s*', '', title)
+        t = _re.sub(r'\s+', ' ', t).strip().lower()
+        return t[:60]
+
+    def _is_duplicate(self, orden: Dict) -> bool:
+        """Verificar si una orden es duplicada de una ya procesada."""
+        title = orden.get("title", "")
+        normalized = self._normalize_title(title)
+        if normalized in self._seen_titles:
+            logger.info(f"Orden #{orden.get('id')} es duplicada de titulo ya visto: {normalized[:40]}")
+            return True
+        return False
+
     def run(self) -> None:
-        """Loop principal: poll pendientes y ejecutar ordenes."""
+        """Loop principal: poll pendientes y ejecutar ordenes con reintentos."""
         print(f"{'='*60}")
         print(f"  WORKER EXECUTOR — {self.worker_name}")
         print(f"  docs-service: {DOCS_SERVICE_URL}")
         print(f"  project: {self.project_root}")
         print(f"  scope: {self.scope_paths}")
         print(f"  intervalo: {self.check_interval}s")
+        print(f"  reintentos: {WORKER_MAX_RETRIES}")
         print(f"  LLM providers: {self.llm_chain.available_providers}")
         print(f"{'='*60}")
         print()
@@ -619,7 +695,12 @@ class WorkerExecutor:
         self.docs_client.publish_worker_report(
             worker_name=self.worker_name,
             title=f"{self.worker_name} executor arrancado",
-            content=f"Executor autonomo activo. Scope: {self.scope_paths}",
+            content=(
+                f"Executor autonomo activo.\n"
+                f"Scope: {self.scope_paths}\n"
+                f"Max retries: {WORKER_MAX_RETRIES}\n"
+                f"Providers: {self.llm_chain.available_providers}"
+            ),
             tags=["arranque", "executor"],
         )
 
@@ -628,22 +709,68 @@ class WorkerExecutor:
                 pendientes = self.docs_client.get_worker_pendientes(self.worker_name)
 
                 if pendientes:
-                    # Buscar primera orden no procesada
+                    # Buscar primera orden no procesada ni duplicada
                     orden = None
                     for p in pendientes:
-                        if p.get("id") not in self._processed_ids:
-                            orden = p
-                            break
+                        doc_id = p.get("id")
+
+                        # Skip ya completadas/permanentemente fallidas
+                        if doc_id in self._processed_ids:
+                            continue
+
+                        # Skip si ya esta blocked en el servidor
+                        if p.get("workflow_status") == "blocked":
+                            self._processed_ids.add(doc_id)
+                            continue
+
+                        # Skip si ya esta completed en el servidor
+                        if p.get("workflow_status") in ("completed", "cancelled"):
+                            self._processed_ids.add(doc_id)
+                            continue
+
+                        # Dedup: skip si hay otra orden con el mismo titulo ya vista
+                        if self._is_duplicate(p):
+                            # Marcar como cancelled en el servidor
+                            mark_as_blocked(doc_id, self.worker_name, message="Duplicada")
+                            self._processed_ids.add(doc_id)
+                            continue
+
+                        orden = p
+                        break
 
                     if orden:
                         doc_id = orden.get("id")
                         doc_full = self.docs_client.get_doc(doc_id)
-                        if doc_full:
-                            self.execute_order(doc_full)
-                            self._processed_ids.add(doc_id)
-                        else:
+                        if not doc_full:
                             logger.warning(f"No se pudo leer orden #{doc_id}")
                             self._processed_ids.add(doc_id)
+                        else:
+                            # Retry loop
+                            attempt = self._attempts.get(doc_id, 0) + 1
+                            self._attempts[doc_id] = attempt
+
+                            success = self.execute_order(doc_full, attempt=attempt)
+
+                            if success:
+                                # Registrar titulo como visto
+                                self._seen_titles.add(
+                                    self._normalize_title(doc_full.get("title", ""))
+                                )
+                                self._processed_ids.add(doc_id)
+                            elif attempt > WORKER_MAX_RETRIES:
+                                # Sin mas reintentos, marcar como done
+                                self._seen_titles.add(
+                                    self._normalize_title(doc_full.get("title", ""))
+                                )
+                                self._processed_ids.add(doc_id)
+                            else:
+                                # Hay reintentos disponibles, esperar y reintentar
+                                logger.info(
+                                    f"Reintentando #{doc_id} en {WORKER_RETRY_DELAY}s "
+                                    f"(intento {attempt}/{WORKER_MAX_RETRIES + 1})"
+                                )
+                                time.sleep(WORKER_RETRY_DELAY)
+                                continue  # No esperar check_interval, reintentar ya
                     else:
                         print(".", end="", flush=True)
                 else:

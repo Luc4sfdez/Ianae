@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from pathlib import Path
 import json
+import re
 
 from .database import init_db, get_connection
 from .api.v1.notifications import router as notifications_router
@@ -107,11 +108,33 @@ async def list_docs(limit: int = 50, category: Optional[str] = None):
 
 @app.post("/api/v1/docs")
 async def create_doc(doc: DocCreate):
-    """Crear documento."""
+    """Crear documento. Detecta duplicados por titulo+categoria en ultimas 24h."""
     conn = get_connection()
     try:
         now = datetime.utcnow().isoformat()
         tags_json = json.dumps(doc.tags) if isinstance(doc.tags, list) else doc.tags
+
+        # Anti-duplicado: buscar doc con mismo titulo+categoria en las ultimas 24h
+        if doc.category == "especificaciones":
+            # Normalizar titulo para comparar (quitar numeros de orden)
+            norm_title = re.sub(r'(?:Orden|ORDEN)[- ](?:CORE-)?#?\d+[a-z]?:?\s*', '', doc.title).strip()
+            cursor = conn.execute(
+                """
+                SELECT id, title, workflow_status FROM documents
+                WHERE category = ? AND deleted_at IS NULL
+                AND datetime(created_at) > datetime('now', '-24 hours')
+                ORDER BY created_at DESC LIMIT 50
+                """,
+                (doc.category,)
+            )
+            recent = [dict(row) for row in cursor.fetchall()]
+            for existing in recent:
+                existing_norm = re.sub(r'(?:Orden|ORDEN)[- ](?:CORE-)?#?\d+[a-z]?:?\s*', '', existing["title"]).strip()
+                if existing_norm.lower()[:60] == norm_title.lower()[:60]:
+                    # Duplicado detectado, retornar el existente
+                    print(f"[DEDUP] Orden duplicada detectada: '{doc.title[:50]}' = #{existing['id']}")
+                    cursor = conn.execute("SELECT * FROM documents WHERE id = ?", (existing["id"],))
+                    return dict(cursor.fetchone())
 
         cursor = conn.execute(
             """
@@ -566,6 +589,174 @@ async def get_system_alerts():
             "has_error": any(a["level"] == "error" for a in alerts)
         }
 
+    finally:
+        conn.close()
+
+
+@app.get("/api/v1/metrics/costs")
+async def get_cost_metrics():
+    """
+    Metricas de costos LLM extraidas de reportes de workers.
+    Parsea bloques <!-- COST_DATA: {...} --> y tambien el formato legacy
+    "Provider\\n\\nprovider (Xin/Yout)".
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "SELECT * FROM documents WHERE category = 'reportes' AND deleted_at IS NULL ORDER BY created_at DESC"
+        )
+        reports = [dict(row) for row in cursor.fetchall()]
+
+        # Cost rates per 1M tokens
+        RATES = {
+            "deepseek": {"input": 0.27, "output": 1.10},
+            "qwen": {"input": 0.80, "output": 2.00},
+            "anthropic": {"input": 3.00, "output": 15.00},
+        }
+
+        calls = []
+        total_cost = 0.0
+        by_provider = {}
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        for report in reports:
+            content = report.get("content", "")
+            cost_data = None
+
+            # Try structured format first
+            m = re.search(r'<!-- COST_DATA: ({.*?}) -->', content)
+            if m:
+                try:
+                    cost_data = json.loads(m.group(1))
+                except json.JSONDecodeError:
+                    pass
+
+            # Fallback: parse legacy format "## Provider\n\nprovider (Xin/Yout)"
+            if not cost_data:
+                m2 = re.search(r'## Provider\s*\n\s*(\w+)\s*\((\d+)in/(\d+)out\)', content)
+                if m2:
+                    provider = m2.group(1)
+                    inp = int(m2.group(2))
+                    outp = int(m2.group(3))
+                    rates = RATES.get(provider, {"input": 3.0, "output": 15.0})
+                    cost = (inp * rates["input"] + outp * rates["output"]) / 1_000_000
+                    cost_data = {
+                        "provider": provider,
+                        "model": "unknown",
+                        "input_tokens": inp,
+                        "output_tokens": outp,
+                        "cost_usd": round(cost, 6),
+                    }
+
+            if cost_data and cost_data.get("provider") != "none":
+                # Extract files from report
+                files_modified = []
+                fm = re.search(r'Archivos (?:modificados|intentados):\s*(.+?)(?:\n|$)', content)
+                if fm:
+                    files_modified = [f.strip() for f in fm.group(1).split(",") if f.strip()]
+
+                is_success = "COMPLETADO" in report.get("title", "")
+                call_info = {
+                    "doc_id": report.get("id"),
+                    "order_title": report.get("title", ""),
+                    "timestamp": report.get("created_at"),
+                    "provider": cost_data.get("provider", "unknown"),
+                    "model": cost_data.get("model", "unknown"),
+                    "input_tokens": cost_data.get("input_tokens", 0),
+                    "output_tokens": cost_data.get("output_tokens", 0),
+                    "cost_usd": cost_data.get("cost_usd", 0),
+                    "success": is_success,
+                    "files": files_modified,
+                }
+                calls.append(call_info)
+
+                cost_val = cost_data.get("cost_usd", 0)
+                total_cost += cost_val
+                total_input_tokens += cost_data.get("input_tokens", 0)
+                total_output_tokens += cost_data.get("output_tokens", 0)
+
+                prov = cost_data.get("provider", "unknown")
+                if prov not in by_provider:
+                    by_provider[prov] = {"calls": 0, "cost_usd": 0, "input_tokens": 0, "output_tokens": 0}
+                by_provider[prov]["calls"] += 1
+                by_provider[prov]["cost_usd"] = round(by_provider[prov]["cost_usd"] + cost_val, 6)
+                by_provider[prov]["input_tokens"] += cost_data.get("input_tokens", 0)
+                by_provider[prov]["output_tokens"] += cost_data.get("output_tokens", 0)
+
+        successes = sum(1 for c in calls if c["success"])
+        failures = sum(1 for c in calls if not c["success"])
+
+        return {
+            "total_cost_usd": round(total_cost, 4),
+            "total_calls": len(calls),
+            "total_input_tokens": total_input_tokens,
+            "total_output_tokens": total_output_tokens,
+            "successes": successes,
+            "failures": failures,
+            "success_rate": round(successes / len(calls) * 100, 1) if calls else 0,
+            "by_provider": by_provider,
+            "calls": calls,
+            "rates_per_1m": RATES,
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/api/v1/metrics/code")
+async def get_code_metrics():
+    """
+    Metricas de codigo real generado: archivos creados/modificados exitosamente.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "SELECT * FROM documents WHERE category = 'reportes' AND deleted_at IS NULL ORDER BY created_at DESC"
+        )
+        reports = [dict(row) for row in cursor.fetchall()]
+
+        files_created = {}  # path -> {success: bool, orders: [], last_modified: str}
+        successful_orders = []
+        failed_orders = []
+
+        for report in reports:
+            content = report.get("content", "")
+            title = report.get("title", "")
+            is_success = "COMPLETADO" in title
+
+            # Extract files
+            fm = re.search(r'Archivos (?:modificados|intentados):\s*(.+?)(?:\n|$)', content)
+            if fm:
+                file_list = [f.strip() for f in fm.group(1).split(",") if f.strip()]
+            else:
+                file_list = []
+
+            order_info = {
+                "doc_id": report.get("id"),
+                "title": title,
+                "timestamp": report.get("created_at"),
+                "files": file_list,
+                "success": is_success,
+                "author": report.get("author"),
+            }
+
+            if is_success:
+                successful_orders.append(order_info)
+                for f in file_list:
+                    if f not in files_created:
+                        files_created[f] = {"success": True, "orders": [], "last_modified": report.get("created_at")}
+                    files_created[f]["orders"].append(report.get("id"))
+            else:
+                failed_orders.append(order_info)
+
+        return {
+            "files_generated": files_created,
+            "total_files": len(files_created),
+            "successful_orders": successful_orders,
+            "failed_orders": failed_orders,
+            "total_successful": len(successful_orders),
+            "total_failed": len(failed_orders),
+        }
     finally:
         conn.close()
 
