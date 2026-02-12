@@ -18,24 +18,15 @@ import json
 import sys
 from datetime import datetime
 from typing import List, Dict, Optional
-import os
 from pathlib import Path
 
-# Añadir src/ al path para importar IANAE core y NLP
-SRC_PATH = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(SRC_PATH))
-sys.path.insert(0, str(SRC_PATH / "core"))
-
-import nucleo as _nucleo_module
-sys.modules['nucleo_lucas'] = _nucleo_module  # Alias para emergente.py
-
-from nucleo import ConceptosLucas, crear_universo_lucas
-from emergente import PensamientoLucas
+from src.core.nucleo import ConceptosLucas, crear_universo_lucas
+from src.core.emergente import PensamientoLucas
 
 # NLP Pipeline (optional - funciona con o sin spaCy/transformers)
 _nlp_pipeline = None
 try:
-    from nlp.pipeline import PipelineNLP
+    from src.nlp.pipeline import PipelineNLP
     _nlp_available = True
 except ImportError:
     _nlp_available = False

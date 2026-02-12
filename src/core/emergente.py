@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 try:
-    from nucleo_lucas import ConceptosLucas
+    from src.core.nucleo import ConceptosLucas
 except ImportError:
     from nucleo import ConceptosLucas
 import random
