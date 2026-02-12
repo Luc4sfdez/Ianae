@@ -986,6 +986,41 @@ class ConceptosLucas:
 
         return creados
 
+    def buscar_por_similitud_coseno(self, nombre_concepto, top_k=5):
+        """
+        Busca los conceptos mas similares a uno dado usando similitud coseno
+        directamente sobre self.conceptos (sin requerir rebuild del indice).
+
+        Args:
+            nombre_concepto: nombre del concepto de referencia
+            top_k: numero maximo de resultados
+
+        Returns:
+            Lista de (nombre_concepto, similitud) ordenada de mayor a menor.
+            No incluye el concepto de referencia.
+        """
+        if nombre_concepto not in self.conceptos:
+            return []
+
+        ref = self.conceptos[nombre_concepto]['actual']
+        ref_norm = np.linalg.norm(ref)
+        if ref_norm < 1e-10:
+            return []
+
+        similitudes = []
+        for nombre, data in self.conceptos.items():
+            if nombre == nombre_concepto:
+                continue
+            vec = data['actual']
+            vec_norm = np.linalg.norm(vec)
+            if vec_norm < 1e-10:
+                continue
+            sim = float(np.dot(ref, vec) / (ref_norm * vec_norm))
+            similitudes.append((nombre, sim))
+
+        similitudes.sort(key=lambda x: x[1], reverse=True)
+        return similitudes[:top_k]
+
 
 # Función de inicialización específica para Lucas
 def crear_universo_lucas():

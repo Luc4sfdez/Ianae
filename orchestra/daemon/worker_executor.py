@@ -750,10 +750,15 @@ class WorkerExecutor:
         plan_text = plan_response.text
         file_plan_pattern = re.compile(r'-\s*FILE:\s*(\S+)\s*[—\-]+\s*(.+)')
         planned_files = []
+        seen_paths = set()
         for match in file_plan_pattern.finditer(plan_text):
             path = match.group(1).strip()
             desc = match.group(2).strip()
-            planned_files.append((path, desc))
+            if path not in seen_paths:
+                planned_files.append((path, desc))
+                seen_paths.add(path)
+            else:
+                logger.warning(f"Chunked: descartando archivo duplicado en plan: {path}")
 
         if not planned_files:
             logger.warning("Chunked: planning call no produjo archivos")
