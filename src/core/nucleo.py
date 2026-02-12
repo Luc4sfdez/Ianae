@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from src.core.indice_espacial import IndiceEspacial
 from src.core.persistencia import PersistenciaVectores
+from src.core.versionado import VersionadoEstado
 
 class ConceptosLucas:
     """
@@ -28,6 +29,7 @@ class ConceptosLucas:
         self.historial_activaciones = []
         self.indice = IndiceEspacial(dim_vector)
         self.persistencia = PersistenciaVectores()
+        self.versionado = VersionadoEstado()
 
         # Métricas específicas para nuestro caso
         self.metricas = {
@@ -1009,7 +1011,7 @@ class ConceptosLucas:
         ref = self.conceptos[nombre_concepto]['actual']
         return self.indice.buscar_similares(ref, top_k=top_k, excluir_id=nombre_concepto)
 
-    def guardar_estado(self, nombre: str = "default") -> bool:
+    def guardar_estado(self, nombre: str = "default", versionar: bool = True) -> bool:
         """
         Guardar todos los conceptos actuales en SQLite.
 
@@ -1029,9 +1031,31 @@ class ConceptosLucas:
                     "snapshot": nombre,
                 }
                 self.persistencia.guardar_vector(clave, data["actual"], meta)
+            if versionar:
+                self.versionado.guardar_con_version(nombre, self.conceptos)
             return True
         except Exception:
             return False
+
+    def cargar_version(self, version_id: int) -> bool:
+        """
+        Cargar una version especifica y restaurar vectores.
+
+        Returns:
+            True si se cargo correctamente.
+        """
+        import numpy as np
+        datos = self.versionado.cargar_version(version_id)
+        if not datos:
+            return False
+        cargados = 0
+        for nombre, info in datos["conceptos"].items():
+            if nombre in self.conceptos:
+                vec = np.array(info["vector"])
+                self.conceptos[nombre]["actual"] = vec
+                self.indice.actualizar(nombre, vec)
+                cargados += 1
+        return cargados > 0
 
     def cargar_estado(self, nombre: str = "default") -> bool:
         """
