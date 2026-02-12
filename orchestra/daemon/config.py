@@ -63,10 +63,12 @@ CACHE_MAX_ENTRIES = 500
 
 # Worker executor
 WORKER_CHECK_INTERVAL = 15  # segundos entre polls
-WORKER_MAX_TOKENS = 16384   # tokens para generar codigo (max Claude Sonnet)
+WORKER_MAX_TOKENS = 8192    # tokens para generar codigo (max DeepSeek)
 WORKER_MAX_FILES = 5        # max archivos por orden
 WORKER_MAX_RETRIES = 2      # reintentos por orden antes de marcar blocked
 WORKER_RETRY_DELAY = 10     # segundos entre reintentos
+WORKER_CHUNK_PLAN_TOKENS = 2048    # tokens para planning call (chunked generation)
+WORKER_CHUNK_FILE_TOKENS = 6000    # tokens para cada file generation call (chunked)
 
 # Scopes de workers (que archivos puede tocar cada uno)
 WORKER_SCOPES = {

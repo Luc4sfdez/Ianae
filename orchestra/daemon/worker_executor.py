@@ -40,6 +40,8 @@ from config import (
     WORKER_MAX_RETRIES,
     WORKER_RETRY_DELAY,
     WORKER_SCOPES,
+    WORKER_CHUNK_PLAN_TOKENS,
+    WORKER_CHUNK_FILE_TOKENS,
 )
 
 logger = get_logger("worker_executor")
@@ -501,6 +503,214 @@ class WorkerExecutor:
 
         return [{"role": "user", "content": user_message}]
 
+    # ------------------------------------------------------------------
+    # Chunked generation: planning call + per-file calls
+    # ------------------------------------------------------------------
+
+    def _load_planning_prompt(self) -> str:
+        """System prompt para la planning call (lista de archivos a generar)."""
+        return (
+            f"Eres {self.worker_name} de IANAE, un sistema de inteligencia emergente.\n"
+            f"Tu scope: {', '.join(self.scope_paths)}\n\n"
+            "TAREA: Analiza la orden y responde SOLO con un plan de archivos.\n"
+            "NO generes codigo. Solo lista los archivos que necesitas crear o modificar.\n\n"
+            "FORMATO DE RESPUESTA OBLIGATORIO:\n\n"
+            "### PLAN\n"
+            "- FILE: ruta/al/archivo.py — Breve descripcion de que hacer\n"
+            "- FILE: ruta/al/test.py — Breve descripcion del test\n"
+            "### REPORT\n"
+            "Breve descripcion del approach general.\n\n"
+            "REGLAS:\n"
+            f"- Maximo {WORKER_MAX_FILES} archivos\n"
+            "- Solo archivos dentro de tu scope\n"
+            "- Cada linea FILE debe tener path y descripcion separados por —\n"
+            "- NO generes codigo, solo el plan\n"
+            "- Empieza directamente con ### PLAN\n"
+        )
+
+    def _load_file_gen_prompt(self, file_path: str, file_description: str,
+                              plan_text: str, previously_generated: List[Dict[str, str]]) -> str:
+        """System prompt para generar un archivo individual."""
+        prev_context = ""
+        if previously_generated:
+            prev_parts = []
+            for f in previously_generated:
+                prev_parts.append(
+                    f"### FILE: {f['path']}\n```python\n{f['content']}\n```"
+                )
+            prev_context = (
+                "\n\nARCHIVOS YA GENERADOS (para coherencia, NO los repitas):\n\n"
+                + "\n\n".join(prev_parts)
+            )
+
+        return (
+            f"Eres {self.worker_name} de IANAE, un sistema de inteligencia emergente.\n"
+            f"Tu scope: {', '.join(self.scope_paths)}\n\n"
+            f"PLAN COMPLETO:\n{plan_text}\n\n"
+            f"TAREA: Genera SOLO el contenido completo del archivo: {file_path}\n"
+            f"Descripcion: {file_description}\n\n"
+            "FORMATO DE RESPUESTA OBLIGATORIO:\n\n"
+            f"### FILE: {file_path}\n"
+            "```python\n"
+            "# contenido completo del archivo\n"
+            "```\n\n"
+            "REGLAS CRITICAS:\n"
+            f"- Genera SOLO el archivo {file_path}, ningun otro\n"
+            "- Si el contexto dice '(RESUMEN)', el archivo es grande. "
+            "NO lo reescribas completo. Genera SOLO los metodos/funciones NUEVOS a agregar.\n"
+            "- Cierra el bloque de codigo con ```\n"
+            "- NO incluyas ### REPORT ni otros archivos\n"
+            f"{prev_context}"
+        )
+
+    def _cost_block_multi(self, responses) -> str:
+        """Generar bloque JSON de costos acumulados de multiples llamadas LLM."""
+        if not responses:
+            return ""
+        total_input = sum(r.input_tokens for r in responses)
+        total_output = sum(r.output_tokens for r in responses)
+        # Usar provider de la primera respuesta como referencia
+        provider = responses[0].provider
+        model = responses[0].model
+        cost_usd = self._estimate_cost(provider, total_input, total_output)
+        data = {
+            "provider": provider,
+            "model": model,
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "cost_usd": cost_usd,
+            "chunked_calls": len(responses),
+        }
+        return f"\n\n<!-- COST_DATA: {json.dumps(data)} -->"
+
+    def _chunked_generate(self, orden: Dict, context: str) -> Tuple[List[Dict], str, list]:
+        """
+        Generacion chunked: planning call + per-file calls.
+
+        Parte la generacion LLM en multiples llamadas pequenas para evitar
+        el limite de output tokens de DeepSeek (8192). Cada llamada usa
+        max ~6000 tokens de output.
+
+        Returns:
+            (files, report, all_llm_responses)
+        """
+        all_responses = []
+
+        # --- PASO 1: Planning call ---
+        planning_prompt = self._load_planning_prompt()
+        orden_content = orden.get("content", "")
+        orden_title = orden.get("title", "Sin titulo")
+
+        planning_user_msg = (
+            f"# Orden: {orden_title}\n\n"
+            f"{orden_content}\n\n"
+            f"# Archivos actuales (contexto)\n\n"
+            f"{context}\n\n"
+            "# RESPONDE con ### PLAN listando archivos necesarios"
+        )
+
+        logger.info("Chunked: enviando planning call")
+        plan_response = self.llm_chain.chat(
+            system=planning_prompt,
+            messages=[{"role": "user", "content": planning_user_msg}],
+            max_tokens=WORKER_CHUNK_PLAN_TOKENS,
+        )
+        all_responses.append(plan_response)
+        logger.info(
+            f"Chunked: planning response via {plan_response.provider}",
+            tokens_in=plan_response.input_tokens,
+            tokens_out=plan_response.output_tokens,
+        )
+
+        # Parsear plan: extraer lineas "- FILE: path — descripcion"
+        plan_text = plan_response.text
+        file_plan_pattern = re.compile(r'-\s*FILE:\s*(\S+)\s*[—\-]+\s*(.+)')
+        planned_files = []
+        for match in file_plan_pattern.finditer(plan_text):
+            path = match.group(1).strip()
+            desc = match.group(2).strip()
+            planned_files.append((path, desc))
+
+        if not planned_files:
+            logger.warning("Chunked: planning call no produjo archivos")
+            # Extraer report si hay
+            report = ""
+            report_match = re.search(r'###\s*REPORT\s*\n(.*)', plan_text, re.DOTALL)
+            if report_match:
+                report = report_match.group(1).strip()
+            return [], report, all_responses
+
+        # Limitar a WORKER_MAX_FILES
+        if len(planned_files) > WORKER_MAX_FILES:
+            logger.warning(
+                f"Chunked: plan tiene {len(planned_files)} archivos, "
+                f"limitando a {WORKER_MAX_FILES}"
+            )
+            planned_files = planned_files[:WORKER_MAX_FILES]
+
+        logger.info(
+            f"Chunked: plan con {len(planned_files)} archivos: "
+            + ", ".join(p for p, _ in planned_files)
+        )
+
+        # --- PASO 2: Per-file calls ---
+        generated_files = []
+        for file_path, file_desc in planned_files:
+            file_gen_prompt = self._load_file_gen_prompt(
+                file_path, file_desc, plan_text, generated_files
+            )
+            file_user_msg = (
+                f"# Orden: {orden_title}\n\n"
+                f"{orden_content}\n\n"
+                f"# Archivos actuales (contexto)\n\n"
+                f"{context}\n\n"
+                f"# Genera SOLO el archivo: {file_path}"
+            )
+
+            logger.info(f"Chunked: generando archivo {file_path}")
+            file_response = self.llm_chain.chat(
+                system=file_gen_prompt,
+                messages=[{"role": "user", "content": file_user_msg}],
+                max_tokens=WORKER_CHUNK_FILE_TOKENS,
+            )
+            all_responses.append(file_response)
+            logger.info(
+                f"Chunked: {file_path} via {file_response.provider}",
+                tokens_in=file_response.input_tokens,
+                tokens_out=file_response.output_tokens,
+            )
+
+            # Parsear el archivo generado
+            file_blocks, _ = parse_llm_file_blocks(file_response.text)
+            if file_blocks:
+                # Tomar el primer bloque (deberia ser el unico)
+                generated_files.append(file_blocks[0])
+            else:
+                # Fallback: si no vino con ### FILE: wrapper, usar todo como contenido
+                logger.warning(
+                    f"Chunked: {file_path} no vino con ### FILE: wrapper, "
+                    "usando respuesta raw"
+                )
+                # Intentar extraer contenido de bloque de codigo
+                code_match = re.search(
+                    r'```[a-zA-Z]*\s*\n(.*?)\n```',
+                    file_response.text,
+                    re.DOTALL,
+                )
+                content = code_match.group(1) if code_match else file_response.text
+                generated_files.append({"path": file_path, "content": content})
+
+        # --- PASO 3: Extraer report del plan ---
+        report = ""
+        report_match = re.search(r'###\s*REPORT\s*\n(.*)', plan_text, re.DOTALL)
+        if report_match:
+            report = report_match.group(1).strip()
+            next_block = re.search(r'\n###\s', report)
+            if next_block:
+                report = report[:next_block.start()].strip()
+
+        return generated_files, report, all_responses
+
     def execute_order(self, orden: Dict, attempt: int = 1) -> bool:
         """
         Ejecutar una orden completa: LLM -> aplicar -> tests -> reportar.
@@ -523,18 +733,14 @@ class WorkerExecutor:
         # 2. Leer contexto del scope (filtrado por archivos mencionados)
         context = self._read_scope_files(orden)
 
-        # 3. Llamar al LLM
+        # 3. Generacion chunked (planning + per-file calls)
         try:
-            messages = self._build_llm_messages(orden, context)
-            llm_response = self.llm_chain.chat(
-                system=self.system_prompt,
-                messages=messages,
-                max_tokens=WORKER_MAX_TOKENS,
-            )
+            files, report, all_responses = self._chunked_generate(orden, context)
+            total_in = sum(r.input_tokens for r in all_responses)
+            total_out = sum(r.output_tokens for r in all_responses)
             logger.info(
-                f"LLM respondio via {llm_response.provider}",
-                tokens_in=llm_response.input_tokens,
-                tokens_out=llm_response.output_tokens,
+                f"Chunked generation completa: {len(all_responses)} llamadas, "
+                f"{total_in}in/{total_out}out totales",
             )
         except Exception as e:
             error_msg = f"Error LLM: {e}"
@@ -549,17 +755,14 @@ class WorkerExecutor:
             )
             return False
 
-        # 4. Parsear respuesta
-        files, report = parse_llm_file_blocks(llm_response.text)
-
+        # 4. Verificar que se generaron archivos
         if not files:
             logger.warning(f"LLM no genero archivos (intento {attempt})")
-            cost_meta = self._cost_block(
-                llm_response.provider, llm_response.model,
-                llm_response.input_tokens, llm_response.output_tokens,
-            )
+            cost_meta = self._cost_block_multi(all_responses)
             # Solo marcar blocked si ya no quedan reintentos
             if attempt > max_retries:
+                # Mostrar respuesta del planning call para debug
+                plan_text = all_responses[0].text if all_responses else "(sin respuesta)"
                 mark_as_blocked(
                     doc_id, self.worker_name,
                     message=f"LLM no genero archivos tras {attempt} intentos",
@@ -569,7 +772,7 @@ class WorkerExecutor:
                     title=f"FALLO: {title[:50]} — sin archivos ({attempt} intentos)",
                     content=(
                         f"# LLM no genero archivos tras {attempt} intentos\n\n"
-                        f"## Ultima respuesta raw\n\n```\n{llm_response.text[:2000]}\n```"
+                        f"## Planning response\n\n```\n{plan_text[:2000]}\n```"
                         f"{cost_meta}"
                     ),
                     tags=["error", "parsing"],
@@ -595,9 +798,10 @@ class WorkerExecutor:
         # 6. Ejecutar tests
         tests_passed, test_output = self._run_tests()
 
-        cost_meta = self._cost_block(
-            llm_response.provider, llm_response.model,
-            llm_response.input_tokens, llm_response.output_tokens,
+        cost_meta = self._cost_block_multi(all_responses)
+        provider_summary = (
+            f"{len(all_responses)} llamadas chunked "
+            f"({total_in}in/{total_out}out)"
         )
 
         if tests_passed:
@@ -608,8 +812,7 @@ class WorkerExecutor:
                 f"Archivos modificados: {', '.join(applied)}\n\n"
                 f"## Reporte del LLM\n\n{report}\n\n"
                 f"## Tests\n\n```\n{test_output[-1000:]}\n```\n\n"
-                f"## Provider\n\n{llm_response.provider} "
-                f"({llm_response.input_tokens}in/{llm_response.output_tokens}out)"
+                f"## Provider\n\n{provider_summary}"
                 f"{cost_meta}"
             )
             mark_as_completed(

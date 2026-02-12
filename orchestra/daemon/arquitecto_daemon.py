@@ -188,7 +188,7 @@ def execute_action(action_data, docs_client):
 
     elif action == "escalate":
         msg = action_data.get("message", "Requiere atencion")
-        logger.warning("Escalado a Lucas", message=msg)
+        logger.warning("Escalado a Lucas", escalation=msg)
         print(f"\n{'='*60}")
         print(f"  ESCALADO A LUCAS: {msg}")
         print(f"{'='*60}\n")
