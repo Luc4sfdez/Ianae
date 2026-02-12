@@ -8,6 +8,7 @@ import json
 import os
 import time
 from datetime import datetime
+from src.core.indice_espacial import IndiceEspacial
 
 class ConceptosLucas:
     """
@@ -24,7 +25,8 @@ class ConceptosLucas:
         self.dim_vector = dim_vector
         self.incertidumbre_base = incertidumbre_base
         self.historial_activaciones = []
-        
+        self.indice = IndiceEspacial(dim_vector)
+
         # Métricas específicas para nuestro caso
         self.metricas = {
             'edad': 0,
@@ -299,6 +301,7 @@ class ConceptosLucas:
         
         self.grafo.add_node(nombre)
         self.metricas['conceptos_creados'] += 1
+        self.indice.agregar(nombre, self.conceptos[nombre]['actual'])
 
         # Sincronizar estructuras numpy
         self._ensure_capacity()
@@ -988,8 +991,7 @@ class ConceptosLucas:
 
     def buscar_por_similitud_coseno(self, nombre_concepto, top_k=5):
         """
-        Busca los conceptos mas similares a uno dado usando similitud coseno
-        directamente sobre self.conceptos (sin requerir rebuild del indice).
+        Busca los conceptos mas similares usando el IndiceEspacial (vectorizado).
 
         Args:
             nombre_concepto: nombre del concepto de referencia
@@ -1003,23 +1005,7 @@ class ConceptosLucas:
             return []
 
         ref = self.conceptos[nombre_concepto]['actual']
-        ref_norm = np.linalg.norm(ref)
-        if ref_norm < 1e-10:
-            return []
-
-        similitudes = []
-        for nombre, data in self.conceptos.items():
-            if nombre == nombre_concepto:
-                continue
-            vec = data['actual']
-            vec_norm = np.linalg.norm(vec)
-            if vec_norm < 1e-10:
-                continue
-            sim = float(np.dot(ref, vec) / (ref_norm * vec_norm))
-            similitudes.append((nombre, sim))
-
-        similitudes.sort(key=lambda x: x[1], reverse=True)
-        return similitudes[:top_k]
+        return self.indice.buscar_similares(ref, top_k=top_k, excluir_id=nombre_concepto)
 
 
 # Función de inicialización específica para Lucas
