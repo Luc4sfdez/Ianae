@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IANAE - Hilos de Workers</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #c9d1d9; --text-dim: #8b949e; --text-bright: #f0f6fc;
+    --accent: #58a6ff; --green: #3fb950; --red: #f85149;
+    --orange: #d29922; --purple: #bc8cff; --pink: #f778ba;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', monospace; background: var(--bg); color: var(--text); }
+
+  /* Layout */
+  .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; height: 100vh; }
+  header { grid-column: 1 / -1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; color: var(--accent); font-weight: 600; }
+  header .stats { display: flex; gap: 14px; margin-left: auto; font-size: 12px; color: var(--text-dim); }
+  header .stats .stat { display: flex; align-items: center; gap: 4px; }
+  header .stats .dot { width: 8px; height: 8px; border-radius: 50%; }
+  header .stats .dot.green { background: var(--green); }
+  header .stats .dot.orange { background: var(--orange); }
+  header .stats .dot.red { background: var(--red); }
+
+  /* Sidebar */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 8px 0; }
+  .sidebar h3 { font-size: 11px; text-transform: uppercase; color: var(--text-dim); padding: 12px 16px 6px; letter-spacing: 0.5px; }
+  .sidebar .worker-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 16px; border: none; background: none; color: var(--text); cursor: pointer; font-size: 13px; text-align: left; }
+  .sidebar .worker-btn:hover { background: rgba(88,166,255,0.1); }
+  .sidebar .worker-btn.active { background: rgba(88,166,255,0.15); color: var(--accent); border-left: 2px solid var(--accent); }
+  .sidebar .worker-btn .badge { margin-left: auto; background: var(--border); color: var(--text-dim); font-size: 11px; padding: 1px 6px; border-radius: 10px; }
+  .sidebar .worker-btn .badge.has-items { background: var(--accent); color: var(--bg); }
+  .sidebar .worker-icon { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* View toggle */
+  .view-toggle { display: flex; gap: 2px; background: var(--surface); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
+  .view-toggle button { padding: 4px 10px; border: none; background: none; color: var(--text-dim); cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .view-toggle button.active { background: var(--accent); color: var(--bg); }
+
+  /* Main content */
+  .main { overflow-y: auto; padding: 16px 20px; }
+  .main .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .main .toolbar h2 { font-size: 14px; color: var(--text-bright); }
+  .main .toolbar .auto-refresh { font-size: 11px; color: var(--text-dim); margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .main .toolbar .auto-refresh input { accent-color: var(--accent); }
+
+  /* Thread container */
+  .thread { margin-bottom: 24px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .thread-header { background: var(--surface); padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .thread-header:hover { background: rgba(88,166,255,0.05); }
+  .thread-header .thread-title { font-size: 13px; color: var(--text-bright); font-weight: 500; flex: 1; }
+  .thread-header .thread-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 8px; }
+  .thread-header .thread-count { font-size: 11px; background: var(--border); padding: 1px 6px; border-radius: 10px; color: var(--text-dim); }
+
+  /* Messages in thread */
+  .thread-messages { display: none; }
+  .thread.open .thread-messages { display: block; }
+  .message { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  .message:hover { background: rgba(255,255,255,0.02); }
+  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; color: var(--bg); }
+  .msg-avatar.daemon { background: var(--purple); }
+  .msg-avatar.worker-core { background: var(--green); }
+  .msg-avatar.worker-nlp { background: var(--accent); }
+  .msg-avatar.worker-infra { background: var(--orange); }
+  .msg-avatar.worker-ui { background: var(--pink); }
+  .msg-avatar.lucas { background: var(--red); }
+  .msg-body { flex: 1; min-width: 0; }
+  .msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .msg-author { font-size: 12px; font-weight: 600; color: var(--text-bright); }
+  .msg-time { font-size: 11px; color: var(--text-dim); }
+  .msg-status { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
+  .msg-status.pending { background: rgba(210,153,34,0.2); color: var(--orange); }
+  .msg-status.in_progress { background: rgba(88,166,255,0.2); color: var(--accent); }
+  .msg-status.completed { background: rgba(63,185,80,0.2); color: var(--green); }
+  .msg-status.blocked { background: rgba(248,81,73,0.2); color: var(--red); }
+  .msg-status.done { background: rgba(63,185,80,0.2); color: var(--green); }
+  .msg-title { font-size: 13px; color: var(--text); margin-bottom: 4px; }
+  .msg-content { font-size: 12px; color: var(--text-dim); line-height: 1.5; max-height: 80px; overflow: hidden; white-space: pre-wrap; word-break: break-word; }
+  .msg-content.expanded { max-height: none; }
+  .msg-expand { font-size: 11px; color: var(--accent); cursor: pointer; margin-top: 4px; border: none; background: none; padding: 0; }
+  .msg-tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .msg-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); }
+
+  /* Timeline view */
+  .timeline-msg { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
+  .timeline-msg:hover { background: rgba(255,255,255,0.02); }
+  .timeline-msg .tl-time { font-size: 11px; color: var(--text-dim); min-width: 60px; flex-shrink: 0; padding-top: 2px; }
+  .timeline-msg .tl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .timeline-msg .tl-body { flex: 1; }
+  .timeline-msg .tl-title { font-size: 13px; color: var(--text); }
+  .timeline-msg .tl-author { font-size: 11px; color: var(--text-dim); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  .empty h3 { font-size: 14px; margin-bottom: 8px; }
+
+  /* Loading spinner */
+  .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+  @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+  .loading span { animation: pulse 1.5s infinite; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>IANAE</h1>
+    <span style="font-size:12px;color:var(--text-dim)">Hilos de Workers</span>
+    <div class="view-toggle">
+      <button class="active" onclick="setView('threads')">Hilos</button>
+      <button onclick="setView('timeline')">Timeline</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <nav class="sidebar">
+    <h3>Workers</h3>
+    <button class="worker-btn active" onclick="selectWorker('all')" data-worker="all">
+      <span class="worker-icon" style="background:var(--text-dim)"></span>
+      Todos
+      <span class="badge" id="badge-all">0</span>
+    </button>
+    <button class="worker-btn" onclick="selectWorker('worker-core')" data-worker="worker-core">
+      <span class="worker-icon" style="background:var(--green)"></span>
+      worker-core
+      <span class="badge" id="badge-worker-core">0</span>
+    </button>
+    <button class="worker-btn" onclick="selectWorker('worker-nlp')" data-worker="worker-nlp">
+      <span class="worker-icon" style="background:var(--accent)"></span>
+      worker-nlp
+      <span class="badge" id="badge-worker-nlp">0</span>
+    </button>
+    <button class="worker-btn" onclick="selectWorker('worker-infra')" data-worker="worker-infra">
+      <span class="worker-icon" style="background:var(--orange)"></span>
+      worker-infra
+      <span class="badge" id="badge-worker-infra">0</span>
+    </button>
+    <button class="worker-btn" onclick="selectWorker('worker-ui')" data-worker="worker-ui">
+      <span class="worker-icon" style="background:var(--pink)"></span>
+      worker-ui
+      <span class="badge" id="badge-worker-ui">0</span>
+    </button>
+
+    <h3 style="margin-top:16px">Categorias</h3>
+    <button class="worker-btn" onclick="selectWorker('especificaciones')" data-worker="especificaciones">
+      <span class="worker-icon" style="background:var(--purple)"></span>
+      Ordenes
+      <span class="badge" id="badge-especificaciones">0</span>
+    </button>
+    <button class="worker-btn" onclick="selectWorker('reportes')" data-worker="reportes">
+      <span class="worker-icon" style="background:var(--green)"></span>
+      Reportes
+      <span class="badge" id="badge-reportes">0</span>
+    </button>
+  </nav>
+
+  <main class="main" id="main">
+    <div class="loading"><span>Cargando...</span></div>
+  </main>
+</div>
+
+<script>
+const API = window.location.origin;
+let allDocs = [];
+let currentWorker = 'all';
+let currentView = 'threads';
+let autoRefresh = true;
+let refreshTimer = null;
+
+// --- Data fetching ---
+async function fetchDocs() {
+  try {
+    const res = await fetch(`${API}/api/v1/docs?limit=500`);
+    const data = await res.json();
+    allDocs = (data.docs || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    updateBadges();
+    render();
+  } catch (e) {
+    document.getElementById('main').innerHTML = `<div class="empty"><h3>Error conectando a docs-service</h3><p>${e.message}</p></div>`;
+  }
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch(`${API}/api/v1/metrics/system`);
+    const data = await res.json();
+    const el = document.getElementById('stats');
+    const q = data.quality || {};
+    el.innerHTML = `
+      <span class="stat"><span class="dot green"></span> ${q.total_completados || 0} completados</span>
+      <span class="stat"><span class="dot orange"></span> ${q.total_ordenes || 0} ordenes</span>
+      <span class="stat"><span class="dot red"></span> ${q.total_bloqueados || 0} bloqueados</span>
+      <span class="stat">${data.total_documentos || 0} docs</span>
+    `;
+  } catch(e) {}
+}
+
+function updateBadges() {
+  const counts = { all: allDocs.length };
+  const workers = ['worker-core','worker-nlp','worker-infra','worker-ui'];
+  workers.forEach(w => {
+    counts[w] = allDocs.filter(d => tagsContain(d, w)).length;
+  });
+  counts['especificaciones'] = allDocs.filter(d => d.category === 'especificaciones').length;
+  counts['reportes'] = allDocs.filter(d => d.category === 'reportes').length;
+
+  Object.entries(counts).forEach(([k, v]) => {
+    const el = document.getElementById(`badge-${k}`);
+    if (el) {
+      el.textContent = v;
+      el.className = v > 0 ? 'badge has-items' : 'badge';
+    }
+  });
+}
+
+// --- Helpers ---
+function tagsContain(doc, text) {
+  const tags = typeof doc.tags === 'string' ? doc.tags : JSON.stringify(doc.tags || []);
+  return tags.toLowerCase().includes(text.toLowerCase());
+}
+
+function parseTags(doc) {
+  try {
+    if (typeof doc.tags === 'string') return JSON.parse(doc.tags);
+    return doc.tags || [];
+  } catch { return []; }
+}
+
+function getAvatar(author) {
+  if (author === 'arquitecto-daemon') return 'daemon';
+  if (author === 'lucas') return 'lucas';
+  if (author && author.startsWith('worker-')) return author;
+  return 'daemon';
+}
+
+function avatarLabel(author) {
+  if (author === 'arquitecto-daemon') return 'AD';
+  if (author === 'lucas') return 'LF';
+  if (author === 'worker-core') return 'WC';
+  if (author === 'worker-nlp') return 'WN';
+  if (author === 'worker-infra') return 'WI';
+  if (author === 'worker-ui') return 'WU';
+  return '?';
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const s = Math.floor((now - d) / 1000);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m`;
+  if (s < 86400) return `${Math.floor(s/3600)}h`;
+  return `${Math.floor(s/86400)}d`;
+}
+
+function shortTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+}
+
+function filterDocs() {
+  if (currentWorker === 'all') return allDocs;
+  if (currentWorker === 'especificaciones' || currentWorker === 'reportes') {
+    return allDocs.filter(d => d.category === currentWorker);
+  }
+  return allDocs.filter(d => tagsContain(d, currentWorker) || d.author === currentWorker);
+}
+
+// --- Threading ---
+function buildThreads(docs) {
+  // Group docs into threads by extracting order numbers from titles
+  const threads = new Map();
+  const orphans = [];
+
+  docs.forEach(doc => {
+    // Try to find an order/thread key
+    const title = doc.title || '';
+    let threadKey = null;
+
+    // Match patterns like "Orden #6", "ORDEN-CORE-01", "#79"
+    const orderMatch = title.match(/(?:Orden|ORDEN)[- ](?:CORE-)?#?(\d+)/i) ||
+                       title.match(/#(\d+)/);
+    if (orderMatch) {
+      threadKey = `orden-${orderMatch[1]}`;
+    }
+
+    // Match "Reporte Orden #X"
+    const reportMatch = title.match(/Reporte.*(?:Orden|ORDEN)[- ]#?(\d+)/i);
+    if (reportMatch) {
+      threadKey = `orden-${reportMatch[1]}`;
+    }
+
+    // Match FASE patterns
+    const faseMatch = title.match(/FASE\s+([A-Z])/i);
+    if (faseMatch && !threadKey) {
+      threadKey = `fase-${faseMatch[1]}`;
+    }
+
+    // Genesis grouping
+    if (tagsContain(doc, 'genesis') && !threadKey) {
+      threadKey = 'genesis';
+    }
+
+    if (threadKey) {
+      if (!threads.has(threadKey)) {
+        threads.set(threadKey, { key: threadKey, docs: [], title: '' });
+      }
+      threads.get(threadKey).docs.push(doc);
+    } else {
+      orphans.push(doc);
+    }
+  });
+
+  // Set thread titles (use first doc title or the one with highest priority)
+  threads.forEach(thread => {
+    thread.docs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    // Prefer especificaciones title, then first doc
+    const spec = thread.docs.find(d => d.category === 'especificaciones');
+    thread.title = (spec || thread.docs[0]).title;
+    thread.lastActivity = thread.docs[thread.docs.length - 1].created_at;
+    thread.status = thread.docs[thread.docs.length - 1].workflow_status || thread.docs[thread.docs.length - 1].status;
+  });
+
+  // Sort threads by last activity (newest first)
+  const sorted = [...threads.values()].sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+
+  // Add orphans as individual threads
+  orphans.forEach(doc => {
+    sorted.push({
+      key: `doc-${doc.id}`,
+      title: doc.title,
+      docs: [doc],
+      lastActivity: doc.created_at,
+      status: doc.workflow_status || doc.status
+    });
+  });
+
+  return sorted;
+}
+
+// --- Rendering ---
+function render() {
+  const docs = filterDocs();
+  const main = document.getElementById('main');
+
+  if (docs.length === 0) {
+    main.innerHTML = '<div class="empty"><h3>Sin documentos</h3><p>No hay actividad para este filtro.</p></div>';
+    return;
+  }
+
+  if (currentView === 'threads') {
+    renderThreads(docs, main);
+  } else {
+    renderTimeline(docs, main);
+  }
+}
+
+function renderThreads(docs, container) {
+  const threads = buildThreads(docs);
+
+  let html = `<div class="toolbar">
+    <h2>${currentWorker === 'all' ? 'Todos los hilos' : currentWorker}</h2>
+    <span style="font-size:12px;color:var(--text-dim)">${threads.length} hilos, ${docs.length} mensajes</span>
+    <div class="auto-refresh">
+      <input type="checkbox" id="auto-ref" ${autoRefresh ? 'checked' : ''} onchange="toggleAutoRefresh()">
+      <label for="auto-ref">Auto-refresh 10s</label>
+    </div>
+  </div>`;
+
+  threads.forEach(thread => {
+    const statusClass = thread.status || 'pending';
+    html += `<div class="thread" id="thread-${thread.key}">
+      <div class="thread-header" onclick="toggleThread('${thread.key}')">
+        <span class="msg-status ${statusClass}">${statusClass}</span>
+        <span class="thread-title">${escapeHtml(thread.title)}</span>
+        <span class="thread-meta">${timeAgo(thread.lastActivity)}</span>
+        <span class="thread-count">${thread.docs.length}</span>
+      </div>
+      <div class="thread-messages">`;
+
+    thread.docs.forEach(doc => {
+      html += renderMessage(doc);
+    });
+
+    html += '</div></div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function renderTimeline(docs, container) {
+  // Reverse for newest first
+  const sorted = [...docs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  let html = `<div class="toolbar">
+    <h2>Timeline ${currentWorker === 'all' ? '' : '- ' + currentWorker}</h2>
+    <span style="font-size:12px;color:var(--text-dim)">${sorted.length} mensajes</span>
+    <div class="auto-refresh">
+      <input type="checkbox" id="auto-ref" ${autoRefresh ? 'checked' : ''} onchange="toggleAutoRefresh()">
+      <label for="auto-ref">Auto-refresh 10s</label>
+    </div>
+  </div>`;
+
+  sorted.forEach(doc => {
+    const avatarClass = getAvatar(doc.author);
+    const statusClass = doc.workflow_status || doc.status || 'pending';
+    html += `<div class="timeline-msg">
+      <span class="tl-time">${shortTime(doc.created_at)}</span>
+      <span class="tl-dot" style="background:var(--${avatarClass === 'daemon' ? 'purple' : avatarClass === 'worker-core' ? 'green' : avatarClass === 'worker-infra' ? 'orange' : 'accent'})"></span>
+      <div class="tl-body">
+        <div class="tl-title">
+          <span class="msg-status ${statusClass}" style="margin-right:6px">${statusClass}</span>
+          ${escapeHtml(doc.title || 'Sin titulo')}
+        </div>
+        <span class="tl-author">${doc.author || '?'} &middot; #${doc.id} &middot; ${timeAgo(doc.created_at)}</span>
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderMessage(doc) {
+  const avatarClass = getAvatar(doc.author);
+  const statusClass = doc.workflow_status || doc.status || 'pending';
+  const tags = parseTags(doc);
+  const content = (doc.content || '').substring(0, 500);
+
+  return `<div class="message">
+    <div class="msg-avatar ${avatarClass}">${avatarLabel(doc.author)}</div>
+    <div class="msg-body">
+      <div class="msg-header">
+        <span class="msg-author">${doc.author || '?'}</span>
+        <span class="msg-status ${statusClass}">${statusClass}</span>
+        <span class="msg-time">#${doc.id} &middot; ${shortTime(doc.created_at)} &middot; ${timeAgo(doc.created_at)}</span>
+      </div>
+      <div class="msg-title">${escapeHtml(doc.title || '')}</div>
+      <div class="msg-content" id="content-${doc.id}">${escapeHtml(content)}${(doc.content || '').length > 500 ? '...' : ''}</div>
+      ${(doc.content || '').length > 500 ? `<button class="msg-expand" onclick="toggleContent(${doc.id})">ver mas</button>` : ''}
+      <div class="msg-tags">${tags.map(t => `<span class="msg-tag">${escapeHtml(t)}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+// --- Interactions ---
+function selectWorker(worker) {
+  currentWorker = worker;
+  document.querySelectorAll('.worker-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.worker === worker);
+  });
+  render();
+}
+
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll('.view-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase() === (view === 'threads' ? 'hilos' : 'timeline'));
+  });
+  render();
+}
+
+function toggleThread(key) {
+  const el = document.getElementById(`thread-${key}`);
+  if (el) el.classList.toggle('open');
+}
+
+function toggleContent(docId) {
+  const el = document.getElementById(`content-${docId}`);
+  if (el) {
+    el.classList.toggle('expanded');
+    // Load full content if expanded
+    if (el.classList.contains('expanded')) {
+      const doc = allDocs.find(d => d.id === docId);
+      if (doc) el.textContent = doc.content || '';
+    }
+  }
+}
+
+function toggleAutoRefresh() {
+  autoRefresh = document.getElementById('auto-ref').checked;
+  if (autoRefresh) startRefresh();
+  else stopRefresh();
+}
+
+function startRefresh() {
+  stopRefresh();
+  refreshTimer = setInterval(() => { fetchDocs(); fetchStats(); }, 10000);
+}
+
+function stopRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+// --- Init ---
+fetchDocs();
+fetchStats();
+startRefresh();
+</script>
+</body>
+</html>

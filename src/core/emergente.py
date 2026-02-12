@@ -1,7 +1,10 @@
 # emergente_lucas.py - Pensamiento Emergente adaptado para Lucas
 import numpy as np
 import matplotlib.pyplot as plt
-from nucleo_lucas import ConceptosLucas
+try:
+    from nucleo_lucas import ConceptosLucas
+except ImportError:
+    from nucleo import ConceptosLucas
 import random
 import time
 from collections import defaultdict
@@ -800,6 +803,103 @@ class PensamientoLucas:
                 mostrar_categorias=mostrar_categorias
             )
     
+    # ========== PENSAMIENTO RECURSIVO ==========
+
+    def pensar_recursivo(self, semilla, max_ciclos=5, umbral_convergencia=0.05):
+        """
+        Ciclo recursivo: pensar -> evaluar -> refinar -> repetir hasta convergencia.
+
+        Returns:
+            Dict con ciclos, convergencia, activaciones_finales, coherencia_final, traza.
+        """
+        traza = []
+        activaciones_previas = {}
+        temperatura = 0.5
+        coherencia = 0.0
+
+        for ciclo in range(max_ciclos):
+            resultados = self.sistema.activar(semilla, pasos=3, temperatura=temperatura)
+            activaciones = resultados[-1] if resultados else {}
+
+            coherencia = self._evaluar_coherencia_activacion(activaciones)
+
+            top3 = sorted(activaciones.items(), key=lambda x: x[1], reverse=True)[:3]
+            top3_str = [f"{c}:{v:.2f}" for c, v in top3]
+            traza.append((ciclo + 1, round(coherencia, 3), top3_str))
+
+            if activaciones_previas:
+                comunes = set(activaciones.keys()) & set(activaciones_previas.keys())
+                if comunes:
+                    delta = sum(abs(activaciones.get(c, 0) - activaciones_previas.get(c, 0))
+                                for c in comunes) / len(comunes)
+                    if delta < umbral_convergencia:
+                        return {
+                            'ciclos': ciclo + 1,
+                            'convergencia': True,
+                            'activaciones_finales': activaciones,
+                            'coherencia_final': coherencia,
+                            'traza': traza,
+                        }
+
+            temperatura = self._refinar_activacion(activaciones, coherencia, temperatura)
+            activaciones_previas = activaciones
+
+        return {
+            'ciclos': max_ciclos,
+            'convergencia': False,
+            'activaciones_finales': activaciones_previas,
+            'coherencia_final': coherencia,
+            'traza': traza,
+        }
+
+    def _evaluar_coherencia_activacion(self, activaciones):
+        """
+        Evalua coherencia: similitud entre vectores activos, penaliza echo chamber,
+        premia diversidad controlada.
+        """
+        if len(activaciones) < 2:
+            return 1.0
+
+        conceptos_activos = [c for c in activaciones if c in self.sistema.conceptos]
+        if len(conceptos_activos) < 2:
+            return 1.0
+
+        vectores = [self.sistema.conceptos[c]['actual'] for c in conceptos_activos]
+        categorias = [self.sistema.conceptos[c].get('categoria', 'emergentes')
+                      for c in conceptos_activos]
+
+        # Similitud promedio entre pares
+        sims = []
+        for i in range(len(vectores)):
+            for j in range(i + 1, len(vectores)):
+                cos_sim = np.dot(vectores[i], vectores[j]) / (
+                    np.linalg.norm(vectores[i]) * np.linalg.norm(vectores[j]) + 1e-10)
+                sims.append(cos_sim)
+        similitud_base = np.mean(sims) if sims else 0.5
+
+        # Penalizacion echo chamber
+        from collections import Counter
+        cat_counts = Counter(categorias)
+        max_ratio = max(cat_counts.values()) / len(categorias)
+        echo_penalty = -0.2 if max_ratio > 0.7 else 0.0
+
+        # Bonus diversidad
+        n_cats = len(cat_counts)
+        diversity_bonus = 0.15 if 2 <= n_cats <= 3 else 0.0
+
+        coherencia = similitud_base + echo_penalty + diversity_bonus
+        return max(0.0, min(1.0, coherencia))
+
+    def _refinar_activacion(self, activaciones, coherencia, temperatura_actual):
+        """
+        Ajusta temperatura segun coherencia.
+        """
+        if coherencia < 0.4:
+            return min(temperatura_actual + 0.15, 1.0)
+        elif coherencia > 0.7 and len(activaciones) < 3:
+            return max(temperatura_actual - 0.1, 0.1)
+        return temperatura_actual
+
     def exportar_insights_lucas(self, archivo='insights_lucas.txt'):
         """
         Exporta todos los insights y pensamientos de Lucas a un archivo

@@ -144,22 +144,31 @@ class WorkerExecutor:
         )
 
     def _load_system_prompt(self) -> str:
-        """Cargar system prompt del worker desde prompts/."""
-        # Mapear worker-core -> worker_core.md
-        prompt_name = self.worker_name.replace("-", "_")
-        prompt_path = os.path.join(
-            os.path.dirname(__file__), "prompts", f"{prompt_name}.md"
+        """Construir system prompt enfocado en formato de salida."""
+        format_prompt = (
+            f"Eres {self.worker_name} de IANAE, un sistema de inteligencia emergente.\n"
+            f"Tu scope: {', '.join(self.scope_paths)}\n\n"
+            "FORMATO DE RESPUESTA OBLIGATORIO:\n"
+            "Tu respuesta DEBE contener bloques de archivo con este formato EXACTO:\n\n"
+            "### FILE: ruta/al/archivo.py\n"
+            "```python\n"
+            "# contenido del archivo\n"
+            "```\n\n"
+            "### REPORT\n"
+            "Breve descripcion de cambios.\n\n"
+            "REGLAS CRITICAS:\n"
+            "- SIEMPRE genera al menos un bloque ### FILE:\n"
+            "- Para archivos NUEVOS (tests, etc): contenido completo\n"
+            "- Si el contexto dice '(RESUMEN)', el archivo es grande. "
+            "NO lo reescribas completo. Genera SOLO un archivo con los "
+            "metodos/funciones NUEVOS a agregar. Yo los appendeo al final.\n"
+            "- NO escribas explicaciones antes de los bloques de archivo\n"
+            "- Empieza tu respuesta directamente con ### FILE:\n"
+            f"- Maximo {WORKER_MAX_FILES} archivos\n"
+            "- Solo archivos dentro de tu scope\n"
+            "- IMPORTANTE: Cierra cada bloque con ```\n"
         )
-        try:
-            with open(prompt_path, encoding="utf-8") as f:
-                return f.read()
-        except FileNotFoundError:
-            logger.warning(f"Prompt no encontrado: {prompt_path}, usando default")
-            return (
-                f"Eres {self.worker_name} de IANAE. "
-                f"Tu scope es: {', '.join(self.scope_paths)}. "
-                f"Responde con bloques ### FILE: path y ### REPORT."
-            )
+        return format_prompt
 
     def _is_path_in_scope(self, file_path: str) -> bool:
         """Verificar que un path esta dentro del scope permitido."""
@@ -174,9 +183,24 @@ class WorkerExecutor:
                 return True
         return False
 
-    def _read_scope_files(self) -> str:
-        """Leer archivos del scope para dar contexto al LLM."""
+    def _read_scope_files(self, orden: Optional[Dict] = None) -> str:
+        """
+        Leer archivos del scope para dar contexto al LLM.
+
+        Si la orden menciona archivos especificos, solo envia esos.
+        Archivos grandes (>200 lineas) se envian resumidos (firma de clase + metodos).
+        """
         context_parts = []
+        MAX_FULL_LINES = 200  # Archivos mas grandes se resumen
+
+        # Detectar archivos mencionados en la orden
+        mentioned_files = set()
+        if orden:
+            text = orden.get("content", "") + " " + orden.get("title", "")
+            import re as _re
+            for match in _re.findall(r'[\w/\\]+\.py', text):
+                mentioned_files.add(match.replace("\\", "/"))
+
         for scope_path in self.scope_paths:
             full_path = self.project_root / scope_path
             if full_path.is_file():
@@ -188,18 +212,81 @@ class WorkerExecutor:
                 except Exception as e:
                     logger.warning(f"No se pudo leer {scope_path}: {e}")
             elif full_path.is_dir():
-                # Leer archivos .py del directorio (no recursivo profundo)
                 for py_file in sorted(full_path.rglob("*.py")):
-                    rel = py_file.relative_to(self.project_root)
+                    rel = str(py_file.relative_to(self.project_root)).replace("\\", "/")
+
+                    # Filtrar: solo archivos mencionados o principales (no tests)
+                    if mentioned_files:
+                        is_mentioned = any(m in rel or rel.endswith(m) for m in mentioned_files)
+                        if not is_mentioned:
+                            continue
+                    else:
+                        if "test" in rel.lower() or rel.endswith("__init__.py"):
+                            continue
+
                     try:
                         content = py_file.read_text(encoding="utf-8", errors="replace")
-                        context_parts.append(
-                            f"### FILE: {rel}\n```python\n{content}\n```"
-                        )
+                        lines = content.split("\n")
+
+                        if len(lines) > MAX_FULL_LINES:
+                            # Resumir: imports + signatures de clase/metodos + ultimas 30 lineas
+                            summary = self._summarize_python(content, lines)
+                            context_parts.append(
+                                f"### FILE: {rel} (RESUMEN - {len(lines)} lineas, "
+                                f"envia solo metodos NUEVOS para agregar)\n"
+                                f"```python\n{summary}\n```"
+                            )
+                        else:
+                            context_parts.append(
+                                f"### FILE: {rel}\n```python\n{content}\n```"
+                            )
                     except Exception as e:
                         logger.warning(f"No se pudo leer {rel}: {e}")
 
         return "\n\n".join(context_parts)
+
+    @staticmethod
+    def _summarize_python(content: str, lines: list) -> str:
+        """Resumir archivo Python grande: imports + firmas de clase/metodo."""
+        import re as _re
+        summary_parts = []
+        in_imports = True
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            # Mantener imports
+            if in_imports and (stripped.startswith("import ") or
+                               stripped.startswith("from ") or
+                               stripped == "" or stripped.startswith("#")):
+                summary_parts.append(line)
+                continue
+            elif in_imports and stripped:
+                in_imports = False
+                summary_parts.append("")
+                summary_parts.append("# ... (imports above) ...")
+                summary_parts.append("")
+
+            # Mantener firmas de clase y metodos
+            if _re.match(r'^class\s+\w+', stripped):
+                summary_parts.append(line)
+            elif _re.match(r'^    def\s+\w+', line):
+                summary_parts.append(line)
+                # Incluir docstring si hay
+                if i + 1 < len(lines) and '"""' in lines[i + 1]:
+                    summary_parts.append(lines[i + 1])
+                    if '"""' not in lines[i + 1].split('"""', 1)[1]:
+                        for j in range(i + 2, min(i + 6, len(lines))):
+                            summary_parts.append(lines[j])
+                            if '"""' in lines[j]:
+                                break
+                summary_parts.append("        ...")
+
+        # Agregar ultimas 20 lineas (final de la clase)
+        summary_parts.append("")
+        summary_parts.append("# ... (ultimas lineas del archivo) ...")
+        summary_parts.extend(lines[-20:])
+
+        return "\n".join(summary_parts)
 
     def _backup_file(self, file_path: Path) -> None:
         """Guardar backup de un archivo para rollback."""
@@ -258,12 +345,83 @@ class WorkerExecutor:
             # Crear directorio si no existe
             full_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Escribir archivo
-            full_path.write_text(f["content"], encoding="utf-8")
+            content = f["content"]
+
+            # Si el archivo ya existe y el LLM genero solo metodos nuevos
+            # (detectado porque no tiene imports/class pero tiene def),
+            # appendear al archivo existente con indentacion correcta
+            if full_path.exists() and self._should_append(content, full_path):
+                existing = full_path.read_text(encoding="utf-8", errors="replace")
+                # Detectar indentacion de la clase existente
+                new_code = self._fix_indent_for_class(content, existing)
+                content = existing.rstrip() + "\n\n" + new_code + "\n"
+                logger.info(f"Appendeando metodos a: {f['path']}")
+            else:
+                logger.info(f"Archivo escrito: {f['path']}")
+
+            full_path.write_text(content, encoding="utf-8")
             applied.append(f["path"])
-            logger.info(f"Archivo escrito: {f['path']}")
 
         return applied
+
+    @staticmethod
+    def _fix_indent_for_class(new_code: str, existing_code: str) -> str:
+        """Ajustar indentacion del codigo nuevo para que coincida con la clase."""
+        import re as _re
+
+        # Detectar indentacion de metodos en el archivo existente
+        # Buscar "    def " al inicio de linea (metodo de clase con 4 espacios)
+        existing_methods = _re.findall(r'^( +)def \w+', existing_code, _re.MULTILINE)
+        if not existing_methods:
+            return new_code.strip()
+
+        target_indent = existing_methods[0]  # ej: "    " (4 espacios)
+
+        # Detectar indentacion actual del codigo nuevo
+        new_lines = new_code.strip().split("\n")
+        new_methods = _re.findall(r'^( *)def \w+', new_code, _re.MULTILINE)
+
+        if not new_methods:
+            return new_code.strip()
+
+        current_indent = new_methods[0]  # ej: "" (sin indentacion) o "    "
+
+        if current_indent == target_indent:
+            return new_code.strip()
+
+        # Re-indentar: reemplazar indentacion actual por la target
+        result_lines = []
+        for line in new_lines:
+            if line.strip() == "":
+                result_lines.append("")
+            elif line.startswith(current_indent):
+                # Quitar indentacion actual, poner target
+                stripped = line[len(current_indent):]
+                result_lines.append(target_indent + stripped)
+            else:
+                result_lines.append(target_indent + line)
+
+        return "\n".join(result_lines)
+
+    @staticmethod
+    def _should_append(new_content: str, existing_path: Path) -> bool:
+        """Determinar si el contenido nuevo debe appendearse al existente."""
+        lines = new_content.strip().split("\n")
+        # Si el contenido nuevo no tiene class ni imports principales,
+        # pero tiene def, probablemente son metodos para agregar
+        has_class = any(l.strip().startswith("class ") for l in lines[:5])
+        has_import_block = any(l.strip().startswith("import ") or
+                               l.strip().startswith("from ") for l in lines[:10])
+        has_def = any("def " in l for l in lines)
+
+        # Si no tiene class ni imports pero tiene def -> append
+        if not has_class and not has_import_block and has_def:
+            # Solo si el archivo existente es grande (evitar append a archivos chicos)
+            existing_lines = existing_path.read_text(
+                encoding="utf-8", errors="replace"
+            ).count("\n")
+            return existing_lines > 200
+        return False
 
     def _run_tests(self) -> Tuple[bool, str]:
         """
@@ -295,31 +453,16 @@ class WorkerExecutor:
 
     def _build_llm_messages(self, orden: Dict, context: str) -> List[Dict]:
         """Construir mensajes para el LLM con la orden y contexto."""
-        instruction = (
-            "Responde SOLO con bloques de archivo y un reporte. Formato:\n\n"
-            "### FILE: ruta/al/archivo.py\n"
-            "```python\n"
-            "# contenido completo del archivo\n"
-            "```\n\n"
-            "### REPORT\n"
-            "Descripcion de los cambios realizados.\n\n"
-            "REGLAS:\n"
-            "- Incluye el contenido COMPLETO de cada archivo (no fragmentos)\n"
-            "- Solo modifica archivos dentro de tu scope\n"
-            f"- Maximo {WORKER_MAX_FILES} archivos por respuesta\n"
-            "- Asegurate de que el codigo pase los tests existentes\n"
-        )
-
         orden_content = orden.get("content", "")
         orden_title = orden.get("title", "Sin titulo")
 
         user_message = (
             f"# Orden: {orden_title}\n\n"
             f"{orden_content}\n\n"
-            f"# Archivos actuales del scope\n\n"
+            f"# Archivos actuales (contexto)\n\n"
             f"{context}\n\n"
-            f"# Instrucciones de formato\n\n"
-            f"{instruction}"
+            "# RESPONDE AHORA con ### FILE: bloques\n"
+            "Empieza directamente con ### FILE: ruta/archivo.py"
         )
 
         return [{"role": "user", "content": user_message}]
@@ -338,8 +481,8 @@ class WorkerExecutor:
         # 1. Marcar como in_progress
         mark_as_in_progress(doc_id, self.worker_name, message="Executor procesando")
 
-        # 2. Leer contexto del scope
-        context = self._read_scope_files()
+        # 2. Leer contexto del scope (filtrado por archivos mencionados)
+        context = self._read_scope_files(orden)
 
         # 3. Llamar al LLM
         try:
@@ -535,6 +678,12 @@ def main():
         default=WORKER_CHECK_INTERVAL,
         help=f"Segundos entre polls (default: {WORKER_CHECK_INTERVAL})",
     )
+    parser.add_argument(
+        "--start-from",
+        type=int,
+        default=0,
+        help="Ignorar ordenes con ID menor a este valor",
+    )
 
     args = parser.parse_args()
 
@@ -543,6 +692,18 @@ def main():
         project_root=args.project_root,
         check_interval=args.check_interval,
     )
+
+    # Pre-cargar IDs a ignorar si se pide --start-from
+    if args.start_from > 0:
+        logger.info(f"Ignorando ordenes con ID < {args.start_from}")
+        pendientes = executor.docs_client.get_worker_pendientes(args.worker_name)
+        if pendientes:
+            for p in pendientes:
+                pid = p.get("id", 0)
+                if pid < args.start_from:
+                    executor._processed_ids.add(pid)
+            logger.info(f"Pre-ignoradas {len(executor._processed_ids)} ordenes antiguas")
+
     executor.run()
 
 

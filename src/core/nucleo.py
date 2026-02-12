@@ -6,6 +6,7 @@ from collections import defaultdict
 import random
 import json
 import os
+import time
 from datetime import datetime
 
 class ConceptosLucas:
@@ -858,6 +859,132 @@ class ConceptosLucas:
             })
             
         return resultados
+
+    # ========== GENESIS: Creación dinámica de conceptos ==========
+
+    def genesis_concepto(self, padres, nombre_emergente=None):
+        """
+        Crea un concepto nuevo fusionando vectores de conceptos padres.
+
+        Args:
+            padres: Lista de nombres de conceptos padre (minimo 2).
+            nombre_emergente: Nombre del nuevo concepto. Si None, auto-genera.
+
+        Returns:
+            Nombre del concepto creado.
+
+        Raises:
+            ValueError: Si algun padre no existe o hay menos de 2 padres.
+        """
+        if len(padres) < 2:
+            raise ValueError("Se necesitan al menos 2 conceptos padres")
+
+        for padre in padres:
+            if padre not in self.conceptos:
+                raise ValueError(f"Concepto padre '{padre}' no existe")
+
+        # Vector fusionado: promedio de vectores padres + ruido
+        vectores = [self.conceptos[p]['actual'] for p in padres]
+        vector_fusionado = np.mean(vectores, axis=0)
+        ruido = np.random.normal(0, self.incertidumbre_base * 0.5, self.dim_vector)
+        vector_fusionado = vector_fusionado + ruido
+
+        # Nombre auto-generado
+        if nombre_emergente is None:
+            ts = int(time.time()) if 'time' in dir() else self.metricas['edad']
+            nombre_emergente = f"EMG_{'_'.join(padres[:2])}_{ts}"
+
+        # Crear concepto
+        self.añadir_concepto(
+            nombre_emergente,
+            atributos=vector_fusionado,
+            categoria='emergentes',
+        )
+
+        # Crear conexiones con cada padre
+        for padre in padres:
+            self.relacionar(nombre_emergente, padre, fuerza=0.7, bidireccional=True)
+
+        # Guardar linaje
+        self.conceptos[nombre_emergente]['genesis'] = {
+            'padres': list(padres),
+            'ts': self.metricas['edad'],
+        }
+
+        self.metricas['conceptos_creados'] += 1
+
+        return nombre_emergente
+
+    def detectar_candidatos_genesis(self, umbral_coactivacion=0.5):
+        """
+        Analiza historial de activaciones para encontrar pares de conceptos
+        de diferente categoria que se co-activan frecuentemente.
+
+        Returns:
+            Lista de (concepto1, concepto2, frecuencia).
+        """
+        ultimas = self.historial_activaciones[-5:] if self.historial_activaciones else []
+        if len(ultimas) < 2:
+            return []
+
+        # Contar co-activaciones
+        from collections import Counter
+        coactivaciones = Counter()
+
+        for activacion in ultimas:
+            # historial_activaciones guarda {'inicio': str, 'resultado': dict}
+            if isinstance(activacion, dict) and 'resultado' in activacion:
+                activos = activacion['resultado']
+            elif isinstance(activacion, dict):
+                activos = activacion
+            elif isinstance(activacion, list) and activacion:
+                activos = activacion[-1] if isinstance(activacion[-1], dict) else {}
+            else:
+                continue
+
+            conceptos_activos = [c for c, v in activos.items()
+                                 if isinstance(v, (int, float)) and v > 0.1
+                                 and c in self.conceptos]
+
+            for i, c1 in enumerate(conceptos_activos):
+                for c2 in conceptos_activos[i + 1:]:
+                    cat1 = self.conceptos[c1].get('categoria', 'emergentes')
+                    cat2 = self.conceptos[c2].get('categoria', 'emergentes')
+                    if cat1 != cat2:
+                        par = tuple(sorted([c1, c2]))
+                        coactivaciones[par] += 1
+
+        # Filtrar por umbral (normalizado a [0,1])
+        n = max(len(ultimas), 1)
+        candidatos = []
+        for (c1, c2), count in coactivaciones.most_common():
+            freq = count / n
+            if freq >= umbral_coactivacion:
+                candidatos.append((c1, c2, freq))
+
+        return candidatos
+
+    def ciclo_genesis(self, max_nuevos=3):
+        """
+        Ejecuta un ciclo completo de genesis:
+        1. Detectar candidatos
+        2. Crear conceptos emergentes
+        3. Retornar nombres creados
+
+        Returns:
+            Lista de nombres de conceptos nuevos creados.
+        """
+        candidatos = self.detectar_candidatos_genesis()
+        creados = []
+
+        for c1, c2, freq in candidatos[:max_nuevos]:
+            try:
+                nombre = self.genesis_concepto([c1, c2])
+                creados.append(nombre)
+            except ValueError:
+                continue
+
+        return creados
 
 
 # Función de inicialización específica para Lucas

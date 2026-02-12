@@ -4,10 +4,13 @@ Sistema de documentación y comunicación entre workers y daemon.
 """
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, List
+from pathlib import Path
 import json
 
 from .database import init_db, get_connection
@@ -20,6 +23,17 @@ init_db()
 
 # App
 app = FastAPI(title="docs-service IANAE", version="1.0.0")
+
+# CORS para acceso desde web UI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Directorio de archivos estáticos
+STATIC_DIR = Path(__file__).parent / "static"
 
 # Registrar routers
 app.include_router(notifications_router)
@@ -554,6 +568,15 @@ async def get_system_alerts():
 
     finally:
         conn.close()
+
+
+@app.get("/ui", response_class=HTMLResponse)
+async def ui():
+    """Web UI para ver hilos de conversacion entre workers."""
+    html_path = STATIC_DIR / "index.html"
+    if html_path.exists():
+        return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+    raise HTTPException(404, "UI no encontrada")
 
 
 if __name__ == "__main__":

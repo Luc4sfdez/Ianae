@@ -63,7 +63,7 @@ CACHE_MAX_ENTRIES = 500
 
 # Worker executor
 WORKER_CHECK_INTERVAL = 15  # segundos entre polls
-WORKER_MAX_TOKENS = 4096    # tokens para generar codigo
+WORKER_MAX_TOKENS = 16384   # tokens para generar codigo (max Claude Sonnet)
 WORKER_MAX_FILES = 5        # max archivos por orden
 
 # Scopes de workers (que archivos puede tocar cada uno)
