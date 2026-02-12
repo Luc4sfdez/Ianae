@@ -2,15 +2,10 @@
 # Scope: src/nlp/ (Worker-NLP)
 # Importa ConceptosLucas de nucleo.py (NO lo modifica)
 
-import sys
-import os
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 
-# Añadir src/ al path para importar nucleo
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from nlp.extractor import ExtractorConceptos
+from src.nlp.extractor import ExtractorConceptos
 
 
 class ReduccionDimensional:
@@ -139,11 +134,15 @@ class PipelineNLP:
         if not conceptos:
             return {"conceptos": [], "relaciones": [], "error": "No se extrajeron conceptos"}
 
-        # Paso 2: Generar embeddings
+        # Paso 2: Generar embeddings (con cache)
         embeddings_originales = {}
         for concepto in conceptos:
             nombre = concepto["nombre"]
-            embedding = self.extractor.generar_embedding(nombre)
+            if nombre in self._embeddings_cache:
+                embedding = self._embeddings_cache[nombre]
+            else:
+                embedding = self.extractor.generar_embedding(nombre)
+                self._embeddings_cache[nombre] = embedding
             embeddings_originales[nombre] = embedding
 
         # Paso 3: Reducción dimensional (384/768 → 15)
