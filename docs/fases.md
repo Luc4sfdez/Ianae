@@ -1,6 +1,6 @@
 # IANAE — Historial de Fases de Desarrollo
 
-13 fases completadas. De un grafo de conceptos a un organismo digital que vive y se alimenta del mundo.
+14 fases completadas. De un grafo de conceptos a un organismo digital que vive, se alimenta del mundo y se mira a si misma.
 
 ---
 
@@ -294,6 +294,32 @@ IANAE deja de ser un sistema cerrado. Ahora puede forrajear conocimiento del mun
 **Tests:** 69 tests unitarios + 6 tests API = 75 nuevos. Total suite: 876 tests.
 
 **Env var:** `IANAE_CONOCIMIENTO_EXTERNO=true` para habilitar (deshabilitado por defecto)
+
+---
+
+## Fase 14: Introspeccion — IANAE se Mira a Si Misma
+
+**Branch:** `master`
+
+IANAE obtiene autoconocimiento estructural genuino. Usando `ast.parse()` analiza su propio codigo fuente para entender su arquitectura: clases, metodos, imports, dependencias. Cuando alguien pregunta "quien eres?", la respuesta emerge de su propia estructura, no de strings hardcodeados.
+
+**Componentes:**
+- `introspeccion.py` — ExtractorCodigo (analisis AST) + MapaInterno (cache de autoconocimiento con TTL 5min)
+- ExtractorCodigo: `extraer_modulo()` y `extraer_directorio()` — stdlib only (ast)
+- MapaInterno: `quien_soy()`, `que_puedo_hacer()`, `buscar_en_codigo()`, `complejidad()`, `inyectar_autoconocimiento()`
+- Inyeccion al grafo: conceptos `mod_*` con categoria `autoconocimiento`, relaciones basadas en imports AST
+- 2 endpoints API nuevos: `/api/v1/introspeccion`, `/api/v1/introspeccion/quien-soy`
+- Panel "INTROSPECCION" en dashboard con modulos, clases, metodos, lineas, quien soy
+
+**Integracion con subsistemas existentes:**
+- VidaAutonoma: nuevo tipo de curiosidad `introspeccion` (5% probabilidad), `_explorar_introspeccion()`
+- Consciencia: ajuste de curiosidad incluye `introspeccion`, Fuerza 9 (profundidad introspectiva)
+- Dialogo: deteccion de preguntas auto-referenciales — responde con `mapa_interno.quien_soy()`
+- PulsoStreaming: nuevo tipo de evento `introspeccion`
+- Organismo: instancia MapaInterno, `quien_soy()` delegado, incluido en `estado()`
+- FuenteArchivos: enriquecimiento AST de archivos .py para mejor keyword matching
+
+**Tests:** 26 tests unitarios nuevos. Total suite: 902 tests (901 passed, 1 pre-existente falla).
 
 ---
 

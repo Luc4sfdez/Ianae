@@ -236,6 +236,33 @@ def dashboard_html() -> str:
                     </div>
                 </div>
             </div>
+
+            <!-- Introspeccion (Fase 14) -->
+            <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+                <h2 class="text-sm font-semibold text-gray-400 mb-3">INTROSPECCION</h2>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Modulos</span>
+                        <span id="intro-modulos" class="text-violet-400 font-bold">--</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Clases</span>
+                        <span id="intro-clases" class="text-violet-300">--</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Metodos</span>
+                        <span id="intro-metodos" class="text-violet-300">--</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Lineas de codigo</span>
+                        <span id="intro-lineas" class="text-gray-300">--</span>
+                    </div>
+                    <div class="pt-2 border-t border-gray-800">
+                        <div class="text-xs text-gray-500 mb-1">Quien soy</div>
+                        <div id="intro-quien" class="text-xs text-violet-200 italic leading-relaxed">--</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -252,6 +279,7 @@ const EVENT_COLORS = {
     evolucion:              { color: 'text-orange-400',  bg: 'bg-orange-900/30',  icon: '^' },
     memoria_consolidacion:  { color: 'text-gray-400',    bg: 'bg-gray-800/50',    icon: 'm' },
     exploracion_externa:    { color: 'text-teal-400',    bg: 'bg-teal-900/30',    icon: 'W' },
+    introspeccion:          { color: 'text-violet-400',  bg: 'bg-violet-900/30',  icon: 'I' },
 };
 const MAX_EVENTS = 100;
 let eventCount = 0;
@@ -321,6 +349,7 @@ function buildSummary(tipo, data) {
     if (tipo === 'sueno') return data.veredicto || '';
     if (tipo === 'memoria_consolidacion') return `memorias: ${data.consolidadas || data.total || '?'}`;
     if (tipo === 'exploracion_externa') return `${data.concepto || '?'} — ${data.absorbidos || 0} absorbidos (${data.fuente || '?'})`;
+    if (tipo === 'introspeccion') return `${data.concepto || '?'} — ${data.resultados || 0} hallazgos`;
     // default
     const s = JSON.stringify(data);
     return s.length > 80 ? s.slice(0, 80) + '...' : s;
@@ -543,16 +572,32 @@ async function pollConocimiento() {
     } catch(_) {}
 }
 
+// ===== INTROSPECCION =====
+async function pollIntrospeccion() {
+    try {
+        const r = await fetch('/api/v1/introspeccion');
+        if (!r.ok) return;
+        const d = await r.json();
+        document.getElementById('intro-modulos').textContent = d.modulos || 0;
+        document.getElementById('intro-clases').textContent = d.clases || 0;
+        document.getElementById('intro-metodos').textContent = d.metodos || 0;
+        document.getElementById('intro-lineas').textContent = d.lineas ? d.lineas.toLocaleString() : '--';
+        document.getElementById('intro-quien').textContent = d.quien_soy || '--';
+    } catch(_) {}
+}
+
 // ===== INIT =====
 connectSSE();
 pollOrganismo();
 pollConsciencia();
 pollDiario();
 pollConocimiento();
+pollIntrospeccion();
 setInterval(pollOrganismo, 3000);
 setInterval(pollConsciencia, 5000);
 setInterval(pollDiario, 10000);
 setInterval(pollConocimiento, 5000);
+setInterval(pollIntrospeccion, 10000);
 </script>
 </body>
 </html>'''

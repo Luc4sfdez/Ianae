@@ -32,6 +32,7 @@ from src.api.models import (
     ConscienciaResponse, OrganismoResponse, DiarioResponse,
     StreamStatsResponse,
     ConocimientoConfigRequest, ExploracionExternaRequest, RSSFeedRequest,
+    IntrospeccionResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -796,6 +797,49 @@ async def agregar_rss(body: RSSFeedRequest):
         raise HTTPException(status_code=503, detail="Conocimiento externo no disponible")
     ce.rss.agregar_feed(body.url)
     return {"status": "ok", "feeds": ce.rss.listar_feeds()}
+
+
+# --- Introspeccion (Fase 14) ---
+
+
+@app.get("/api/v1/introspeccion", response_model=IntrospeccionResponse,
+         tags=["introspeccion"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_introspeccion():
+    """Mapa interno de IANAE: modulos, clases, metodos, complejidad."""
+    org = get_organismo()
+    mi = getattr(org, "mapa_interno", None)
+    if mi is None:
+        raise HTTPException(status_code=503, detail="Introspeccion no disponible")
+    comp = mi.complejidad()
+    modulos_detalle = []
+    for m in mi.modulos():
+        modulos_detalle.append({
+            "nombre": m["nombre"],
+            "clases": [c["nombre"] for c in m.get("clases", [])],
+            "funciones": m.get("funciones", []),
+            "lineas": m.get("lineas", 0),
+        })
+    return IntrospeccionResponse(
+        modulos=comp["modulos"],
+        clases=comp["clases"],
+        metodos=comp["metodos"],
+        funciones=comp["funciones"],
+        lineas=comp["lineas"],
+        quien_soy=mi.quien_soy(),
+        modulos_detalle=modulos_detalle,
+    )
+
+
+@app.get("/api/v1/introspeccion/quien-soy", tags=["introspeccion"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_quien_soy():
+    """IANAE describe su propia estructura."""
+    org = get_organismo()
+    mi = getattr(org, "mapa_interno", None)
+    if mi is None:
+        raise HTTPException(status_code=503, detail="Introspeccion no disponible")
+    return {"quien_soy": mi.quien_soy()}
 
 
 # --- Entry point ---

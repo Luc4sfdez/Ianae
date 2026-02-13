@@ -21,6 +21,7 @@ class DialogoIANAE:
         self.sistema = consciencia.vida.sistema
         self.pensamiento = consciencia.vida.pensamiento
         self.insights = consciencia.vida.insights
+        self.mapa_interno = getattr(self.vida, "mapa_interno", None)
         self._historial: List[Dict] = []
 
     # ------------------------------------------------------------------
@@ -156,6 +157,21 @@ class DialogoIANAE:
     # Generacion de respuesta
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Deteccion de preguntas auto-referenciales (Fase 14)
+    # ------------------------------------------------------------------
+
+    _PATRONES_QUIEN_SOY = [
+        "quien eres", "que eres", "que puedes hacer", "como funcionas",
+        "describete", "presentate", "que sabes hacer", "de que estas hecha",
+        "como estas hecha", "cual es tu estructura", "como estas construida",
+    ]
+
+    def _es_autoreferencial(self, pregunta: str) -> bool:
+        """Detecta si la pregunta es sobre IANAE misma."""
+        p = pregunta.lower().strip().rstrip("?").rstrip()
+        return any(patron in p for patron in self._PATRONES_QUIEN_SOY)
+
     def _generar_respuesta(
         self,
         pregunta: str,
@@ -166,6 +182,20 @@ class DialogoIANAE:
     ) -> str:
         """Construye respuesta narrativa desde los datos del grafo."""
         partes: List[str] = []
+
+        # Fase 14: preguntas auto-referenciales
+        if self._es_autoreferencial(pregunta) and self.mapa_interno is not None:
+            try:
+                quien = self.mapa_interno.quien_soy()
+                capacidades = self.mapa_interno.que_puedo_hacer()
+                partes.append(quien)
+                if capacidades:
+                    partes.append(
+                        "Puedo: " + "; ".join(capacidades[:3]) + "."
+                    )
+                return " ".join(partes)
+            except Exception:
+                pass  # fallback a respuesta normal
 
         if not conceptos:
             # No encontro conceptos — respuesta generica

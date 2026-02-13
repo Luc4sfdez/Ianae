@@ -43,6 +43,7 @@ class IANAE:
         from src.core.memoria_viva import MemoriaViva
         from src.core.pulso_streaming import PulsoStreaming
         from src.core.conocimiento_externo import ConocimientoExterno
+        from src.core.introspeccion import MapaInterno
 
         # 1. Nucleo
         self.sistema = crear_universo_lucas()
@@ -59,8 +60,15 @@ class IANAE:
         self.memoria_viva = MemoriaViva()
         self.pulso_streaming = PulsoStreaming()
 
-        # 13. Conocimiento externo
-        self.conocimiento_externo = ConocimientoExterno(sistema=self.sistema)
+        # 13. Conocimiento externo (con introspeccion: IANAE lee su propio codigo)
+        _src_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.conocimiento_externo = ConocimientoExterno(
+            sistema=self.sistema,
+            directorios_archivos=[_src_dir],
+        )
+
+        # 14. Introspeccion — IANAE se mira a si misma
+        self.mapa_interno = MapaInterno(self.sistema, _src_dir)
 
         # 4. Vida autonoma
         self.vida = VidaAutonoma(
@@ -75,6 +83,7 @@ class IANAE:
             memoria_viva=self.memoria_viva,
             pulso_streaming=self.pulso_streaming,
             conocimiento_externo=self.conocimiento_externo,
+            mapa_interno=self.mapa_interno,
         )
 
         # 5. Consciencia
@@ -129,6 +138,7 @@ class IANAE:
         from src.core.memoria_viva import MemoriaViva
         from src.core.pulso_streaming import PulsoStreaming
         from src.core.conocimiento_externo import ConocimientoExterno
+        from src.core.introspeccion import MapaInterno
 
         inst = object.__new__(cls)
         inst.sistema = sistema
@@ -138,7 +148,12 @@ class IANAE:
         inst.pensamiento_profundo = PensamientoProfundo(sistema)
         inst.memoria_viva = MemoriaViva()
         inst.pulso_streaming = PulsoStreaming()
-        inst.conocimiento_externo = ConocimientoExterno(sistema=sistema)
+        _src_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        inst.conocimiento_externo = ConocimientoExterno(
+            sistema=sistema,
+            directorios_archivos=[_src_dir],
+        )
+        inst.mapa_interno = MapaInterno(sistema, _src_dir)
 
         inst.vida = VidaAutonoma(
             sistema, inst.pensamiento, inst.insights,
@@ -150,6 +165,7 @@ class IANAE:
             memoria_viva=inst.memoria_viva,
             pulso_streaming=inst.pulso_streaming,
             conocimiento_externo=inst.conocimiento_externo,
+            mapa_interno=inst.mapa_interno,
         )
         inst.consciencia = Consciencia(inst.vida, objetivos_path=objetivos_path)
         inst.suenos = MotorSuenos(sistema, inst.pensamiento)
@@ -369,6 +385,16 @@ class IANAE:
             f.write(json.dumps(entrada, ensure_ascii=False) + "\n")
 
     # ------------------------------------------------------------------
+    # Introspeccion (Fase 14)
+    # ------------------------------------------------------------------
+
+    def quien_soy(self) -> str:
+        """IANAE describe su propia estructura."""
+        if self.mapa_interno is not None:
+            return self.mapa_interno.quien_soy()
+        return "Soy IANAE, un organismo digital."
+
+    # ------------------------------------------------------------------
     # Estado
     # ------------------------------------------------------------------
 
@@ -393,6 +419,7 @@ class IANAE:
             "archivos_percibidos": len(self.evolucion.archivos_percibidos()),
             "memoria_viva": self.memoria_viva.estadisticas() if self.memoria_viva else None,
             "conocimiento_externo": self.conocimiento_externo.estado() if self.conocimiento_externo else None,
+            "introspeccion": self.mapa_interno.complejidad() if self.mapa_interno else None,
         }
 
     def leer_conversaciones(self, ultimas: int = 10) -> List[Dict]:

@@ -506,6 +506,7 @@ class Consciencia:
         ajustes: Dict[str, float] = {
             "gap": 1.0, "revitalizar": 1.0, "puente": 1.0,
             "prediccion": 1.0, "serendipia": 1.0, "exploracion_externa": 1.0,
+            "introspeccion": 1.0,
         }
 
         # Fuerza 1: Sesgos → reducir tipo dominante
@@ -562,6 +563,11 @@ class Consciencia:
         rut_pct = patrones.get("veredictos_distribucion", {}).get("rutinario", 0)
         if rut_pct > 0.5:
             ajustes["exploracion_externa"] *= 1.5  # buscar fuera
+
+        # Fuerza 9: Profundidad introspectiva
+        prof_simb = self.profundidad_simbolica()
+        if prof_simb["coherencia_media"] > 0.5 and prof_simb["arboles_construidos"] > 5:
+            ajustes["introspeccion"] *= 1.3  # auto-conocimiento cuando hay coherencia
 
         return {k: round(v, 4) for k, v in ajustes.items()}
 

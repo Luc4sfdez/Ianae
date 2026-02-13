@@ -323,9 +323,9 @@ class TestCircuitoCerrado:
 
     def test_cerrar_circuito_aplica_a_vida(self, consciencia):
         consciencia.cerrar_circuito()
-        assert len(consciencia.vida._ajustes_curiosidad) == 6
+        assert len(consciencia.vida._ajustes_curiosidad) == 7
 
     def test_ciclo_consciente_aplica_ajustes(self, consciencia):
         consciencia.ciclo_consciente()
         # Despues del ciclo, los ajustes deben estar aplicados
-        assert len(consciencia.vida._ajustes_curiosidad) == 6
+        assert len(consciencia.vida._ajustes_curiosidad) == 7

@@ -213,6 +213,7 @@ class OrganismoResponse(BaseModel):
     conversaciones: int
     archivos_percibidos: int = 0
     memoria_viva: Optional[Dict] = None
+    introspeccion: Optional[Dict] = None
 
 
 class StreamStatsResponse(BaseModel):
@@ -244,3 +245,15 @@ class ExploracionExternaRequest(BaseModel):
 
 class RSSFeedRequest(BaseModel):
     url: str = Field(..., min_length=5, description="URL del feed RSS/Atom")
+
+
+# --- Introspeccion (Fase 14) ---
+
+class IntrospeccionResponse(BaseModel):
+    modulos: int
+    clases: int
+    metodos: int
+    funciones: int
+    lineas: int
+    quien_soy: str
+    modulos_detalle: List[Dict[str, Any]] = Field(default_factory=list)

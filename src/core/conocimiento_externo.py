@@ -456,7 +456,23 @@ class FuenteArchivos(FuenteExterna):
         contenido_lower = contenido.lower()
         nombre_lower = os.path.basename(ruta).lower()
 
-        matches = sum(1 for k in keywords if k in contenido_lower or k in nombre_lower)
+        # Fase 14: para .py, enriquecer con nombres de clases/metodos via AST
+        texto_busqueda = contenido_lower
+        if ruta.endswith(".py"):
+            try:
+                from src.core.introspeccion import ExtractorCodigo
+                modulo = ExtractorCodigo.extraer_modulo(ruta)
+                if modulo:
+                    nombres_ast = []
+                    for cls in modulo.get("clases", []):
+                        nombres_ast.append(cls["nombre"].lower())
+                        nombres_ast.extend(m.lower() for m in cls.get("metodos", []))
+                    nombres_ast.extend(f.lower() for f in modulo.get("funciones", []))
+                    texto_busqueda = contenido_lower + " " + " ".join(nombres_ast)
+            except Exception:
+                pass
+
+        matches = sum(1 for k in keywords if k in texto_busqueda or k in nombre_lower)
         if matches == 0:
             return None
 
@@ -717,6 +733,7 @@ class ConocimientoExterno:
         probabilidad_externa: float = 0.20,
         max_conceptos_por_ciclo: int = 5,
         umbral_relevancia: float = 0.3,
+        directorios_archivos: Optional[List[str]] = None,
     ):
         # Habilitar via env var o parametro
         if habilitado is None:
@@ -729,7 +746,7 @@ class ConocimientoExterno:
         self.wikipedia = FuenteWikipedia()
         self.rss = FuenteRSS()
         self.web = FuenteWeb()
-        self.archivos = FuenteArchivos()
+        self.archivos = FuenteArchivos(directorios=directorios_archivos)
 
         # Filtro
         self.filtro = FiltroDigestion(

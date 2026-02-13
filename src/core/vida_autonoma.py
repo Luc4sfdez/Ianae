@@ -38,9 +38,14 @@ TEMPLATES = {
         "Que sabe el mundo exterior sobre {concepto}?",
         "Que conocimiento externo puede enriquecer {concepto}?",
     ],
+    "introspeccion": [
+        "Que modulos componen mi estructura?",
+        "Como funciona internamente {concepto}?",
+        "Que rol cumple {concepto} en mi arquitectura?",
+    ],
 }
 
-TIPOS_CURIOSIDAD = {"gap", "revitalizar", "puente", "prediccion", "serendipia", "exploracion_externa"}
+TIPOS_CURIOSIDAD = {"gap", "revitalizar", "puente", "prediccion", "serendipia", "exploracion_externa", "introspeccion"}
 
 
 class VidaAutonoma:
@@ -59,6 +64,7 @@ class VidaAutonoma:
         memoria_viva=None,
         pulso_streaming=None,
         conocimiento_externo=None,
+        mapa_interno=None,
     ):
         self.sistema = sistema
         self.pensamiento = pensamiento
@@ -68,11 +74,12 @@ class VidaAutonoma:
         self.consolidar_cada = consolidar_cada
         self.snapshot_dir = snapshot_dir
 
-        # Fase 9/10/11/13: subsistemas opcionales
+        # Fase 9/10/11/13/14: subsistemas opcionales
         self.pensamiento_profundo = pensamiento_profundo
         self.memoria_viva = memoria_viva
         self.pulso_streaming = pulso_streaming
         self.conocimiento_externo = conocimiento_externo
+        self.mapa_interno = mapa_interno
 
         self._corriendo = False
         self._ciclo_actual = 0
@@ -356,6 +363,18 @@ class VidaAutonoma:
                 "prioridad": 0.5,
             })
 
+        # Fase 14: Introspeccion (5% probabilidad)
+        if self.mapa_interno is not None and random.random() < 0.05:
+            mod_conceptos = [c for c in conceptos_sistema if c.startswith("mod_")]
+            if mod_conceptos:
+                elegido_intro = random.choice(mod_conceptos)
+                candidatos.append({
+                    "tipo": "introspeccion",
+                    "concepto": elegido_intro,
+                    "motivacion": f"Explorar mi propia estructura: {elegido_intro}",
+                    "prioridad": 0.7,
+                })
+
         # Fase 13: Exploracion externa
         if self.conocimiento_externo is not None:
             try:
@@ -416,6 +435,10 @@ class VidaAutonoma:
 
     def _explorar(self, curiosidad: Dict[str, Any]) -> Dict[str, Any]:
         """Propaga + pensamiento recursivo."""
+        # Fase 14: introspeccion
+        if curiosidad.get("tipo") == "introspeccion":
+            return self._explorar_introspeccion(curiosidad)
+
         # Fase 13: explorar externamente si es ese tipo
         if curiosidad.get("tipo") == "exploracion_externa":
             return self._explorar_externo(curiosidad)
@@ -526,6 +549,55 @@ class VidaAutonoma:
             "conexiones_nuevas": conexiones_nuevas,
             "simbolico": {},
             "exploracion_externa": resultado_externo,
+        }
+
+    # ------------------------------------------------------------------
+    # Explorar introspeccion (Fase 14)
+    # ------------------------------------------------------------------
+
+    def _explorar_introspeccion(self, curiosidad: Dict[str, Any]) -> Dict[str, Any]:
+        """Delega a MapaInterno para explorar la propia estructura."""
+        concepto = curiosidad.get("concepto", "")
+        resultados_intro: List[Dict] = []
+
+        if self.mapa_interno is not None:
+            try:
+                # Buscar sin el prefijo mod_
+                query = concepto.replace("mod_", "") if concepto.startswith("mod_") else concepto
+                resultados_intro = self.mapa_interno.buscar_en_codigo(query)
+            except Exception:
+                logger.debug("Error en introspeccion de '%s'", concepto)
+
+        conexiones_nuevas = len(resultados_intro)
+
+        # Propagar el concepto para medir coherencia
+        coherencia = 0.0
+        convergencia = False
+        if concepto in self.sistema.conceptos:
+            try:
+                pensado = self.pensamiento.pensar_recursivo(concepto, max_ciclos=2)
+                coherencia = float(pensado.get("coherencia_final", 0.0))
+                convergencia = bool(pensado.get("convergencia", False))
+            except Exception:
+                pass
+
+        # Emitir evento SSE
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("introspeccion", {
+                    "concepto": concepto,
+                    "resultados": conexiones_nuevas,
+                })
+            except Exception:
+                pass
+
+        return {
+            "activaciones": {},
+            "coherencia": coherencia,
+            "convergencia": convergencia,
+            "conexiones_nuevas": conexiones_nuevas,
+            "simbolico": {},
+            "introspeccion": resultados_intro[:5],
         }
 
     # ------------------------------------------------------------------

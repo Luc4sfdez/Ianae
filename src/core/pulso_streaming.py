@@ -23,6 +23,7 @@ TIPOS_EVENTO = {
     "memoria_consolidacion",
     "simbolico_arbol",
     "exploracion_externa",
+    "introspeccion",
 }
 
 

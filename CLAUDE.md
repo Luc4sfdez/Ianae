@@ -4,10 +4,10 @@
 
 IANAE (Inteligencia Adaptativa No Algoritmica Emergente) es un organismo digital en Python. No es un chatbot ni una red neuronal — es un sistema basado en conceptos difusos, relaciones probabilisticas y comportamiento emergente que vive ciclos de vida autonomos: elige curiosidades, explora, reflexiona, suena, evoluciona y se auto-modifica.
 
-## Estado actual: 13 fases completadas
+## Estado actual: 14 fases completadas
 
-- **876 tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
-- **~19,500 lineas** de codigo en `src/`, **~9,400** en `tests/`
+- **902 tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
+- **~19,800 lineas** de codigo en `src/`, **~9,700** en `tests/`
 - **Branch**: `master` (es la principal, se pushea con `git push origin master`)
 - Docs detallados de cada fase en `docs/fases.md`
 
@@ -28,6 +28,7 @@ src/
 │   ├── evolucion.py           # Mutacion + seleccion natural cada 10 ciclos
 │   ├── persistencia.py        # SQLite para vectores numpy
 │   ├── conocimiento_externo.py # Fase 13: fuentes externas (Wiki, RSS, Web, Archivos) + filtro digestion
+│   ├── introspeccion.py       # Fase 14: AST self-analysis, MapaInterno, autoconocimiento
 │   ├── insights.py            # Comunidades, puentes, analisis predictivo
 │   └── aprendizaje_refuerzo.py
 ├── api/
@@ -63,6 +64,8 @@ docs/
 | POST | `/api/v1/conocimiento/explorar` | Si* | Explorar concepto en fuentes externas |
 | GET | `/api/v1/conocimiento/fuentes` | Si* | Listar fuentes y su estado |
 | POST | `/api/v1/conocimiento/rss` | Si* | Agregar feed RSS |
+| GET | `/api/v1/introspeccion` | Si* | Mapa interno: modulos, clases, complejidad |
+| GET | `/api/v1/introspeccion/quien-soy` | Si* | IANAE describe su estructura |
 
 *Auth solo si `IANAE_API_KEYS` env var esta configurado. Sin ella, todo es abierto.
 
@@ -82,7 +85,7 @@ python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encod
 
 - `get_organismo()` en `main.py` hace lazy init: `crear_universo_lucas()` -> `IANAE.desde_componentes()`
 - `ciclo_completo()` ejecuta: percepcion -> feedback suenos -> ciclo consciente -> sueno -> evolucion (cada 10) -> streaming
-- Tests: `python -m pytest tests/ -q` desde `E:\ianae-final`
+- Tests: `python -m pytest tests/ -q` desde `E:\ianae-final` (902 tests, 1 pre-existente falla)
 - El dashboard de `src/ui/app/` es para Orchestra (servicio separado) — NO es el dashboard de vida
 - El dashboard de vida es `src/api/dashboard.py` servido en `GET /` del mismo FastAPI
 
@@ -101,6 +104,7 @@ python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encod
 11. Streaming SSE (bus de eventos en tiempo real)
 12. Dashboard en vivo con modo auto
 13. Conocimiento externo (Wikipedia, RSS, Web, Archivos + filtro digestion)
+14. Introspeccion (AST self-analysis, MapaInterno, autoconocimiento estructural)
 
 ## Reglas importantes
 
