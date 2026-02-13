@@ -440,7 +440,16 @@ async function pollConsciencia() {
         const corr = d.corrientes || {};
         const corrEl = document.getElementById('con-corrientes');
         if (Object.keys(corr).length > 0) {
-            corrEl.innerHTML = Object.entries(corr).map(([k,v]) =>
+            // Flatten: if flujos is a nested object, show its entries instead
+            const flat = {};
+            Object.entries(corr).forEach(([k, v]) => {
+                if (typeof v === 'object' && v !== null) {
+                    Object.entries(v).forEach(([k2, v2]) => { flat[k2] = v2; });
+                } else {
+                    flat[k] = v;
+                }
+            });
+            corrEl.innerHTML = Object.entries(flat).map(([k,v]) =>
                 `<span class="inline-block bg-gray-800 rounded px-1 mr-1 mb-1">${k}: ${typeof v === 'number' ? v.toFixed(2) : v}</span>`
             ).join('');
         }
@@ -568,8 +577,10 @@ function setBar(prefix, value) {
 
 function updateMemoria(mv) {
     if (!mv) return;
-    const ep = mv.episodica || mv.episodicas || 0;
-    const sem = mv.semantica || mv.semanticas || 0;
+    const epRaw = mv.episodica || mv.episodicas || 0;
+    const semRaw = mv.semantica || mv.semanticas || 0;
+    const ep = typeof epRaw === 'object' ? (epRaw.activas || epRaw.total || 0) : epRaw;
+    const sem = typeof semRaw === 'object' ? (semRaw.activas || semRaw.total || 0) : semRaw;
     const total = mv.total_activas || (ep + sem);
     const maxMem = Math.max(total, 50); // scale bar to at least 50
 
