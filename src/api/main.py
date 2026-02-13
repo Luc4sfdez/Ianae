@@ -27,6 +27,7 @@ from src.api.models import (
     ChatRequest, ChatResponse,
     SuenoRequest, SuenoResponse,
     ConscienciaResponse, OrganismoResponse, DiarioResponse,
+    StreamStatsResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -664,6 +665,50 @@ async def get_diario(
     org = get_organismo()
     entradas = org.vida.leer_diario(ultimos=ultimos)
     return DiarioResponse(entradas=entradas, total=len(entradas))
+
+
+# --- Streaming (Fase 11) ---
+
+
+@app.get("/api/v1/stream", tags=["streaming"])
+async def stream_events(
+    tipos: Optional[str] = Query(None, description="Tipos separados por coma"),
+    desde_id: int = Query(0, ge=0, description="ID desde donde leer"),
+):
+    """SSE endpoint — streaming de eventos del organismo."""
+    import asyncio
+    import json as _json
+    from fastapi.responses import StreamingResponse
+
+    org = get_organismo()
+    ps = getattr(org, "pulso_streaming", None)
+    if ps is None:
+        raise HTTPException(status_code=503, detail="Streaming no disponible")
+
+    tipos_set = set(t.strip() for t in tipos.split(",")) if tipos else None
+
+    async def event_generator():
+        current_id = desde_id
+        for _ in range(60):  # max 30s (60 * 0.5)
+            eventos = ps.consumir(desde_id=current_id, tipos=tipos_set, max_eventos=20)
+            for ev in eventos:
+                current_id = ev["id"]
+                yield f"id: {ev['id']}\nevent: {ev['tipo']}\ndata: {_json.dumps(ev['data'], default=str)}\n\n"
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.get("/api/v1/stream/stats", response_model=StreamStatsResponse,
+         tags=["streaming"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def stream_stats():
+    """Estadisticas del bus de streaming."""
+    org = get_organismo()
+    ps = getattr(org, "pulso_streaming", None)
+    if ps is None:
+        return StreamStatsResponse(activo=False, eventos_en_buffer=0, ultimo_id=0, tipos={}, suscriptores=0)
+    return StreamStatsResponse(**ps.estadisticas())
 
 
 # --- Entry point ---

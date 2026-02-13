@@ -51,6 +51,9 @@ class VidaAutonoma:
         diario_path: str = "data/diario_ianae.jsonl",
         consolidar_cada: int = 20,
         snapshot_dir: str = "data/snapshots",
+        pensamiento_profundo=None,
+        memoria_viva=None,
+        pulso_streaming=None,
     ):
         self.sistema = sistema
         self.pensamiento = pensamiento
@@ -59,6 +62,11 @@ class VidaAutonoma:
         self.diario_path = diario_path
         self.consolidar_cada = consolidar_cada
         self.snapshot_dir = snapshot_dir
+
+        # Fase 9/10/11: subsistemas opcionales
+        self.pensamiento_profundo = pensamiento_profundo
+        self.memoria_viva = memoria_viva
+        self.pulso_streaming = pulso_streaming
 
         self._corriendo = False
         self._ciclo_actual = 0
@@ -126,11 +134,93 @@ class VidaAutonoma:
         self._ciclo_actual += 1
         ts = time.time()
 
+        # Fase 11: streaming ciclo_inicio
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("ciclo_inicio", {"ciclo": self._ciclo_actual})
+            except Exception:
+                pass
+
         curiosidad = self._curiosidad()
+
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("curiosidad_elegida", {
+                    "concepto": curiosidad.get("concepto", ""),
+                    "tipo": curiosidad.get("tipo", ""),
+                })
+            except Exception:
+                pass
+
         pregunta = self._preguntar(curiosidad)
         respuesta = self._explorar(curiosidad)
+
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("exploracion_completa", {
+                    "concepto": curiosidad.get("concepto", ""),
+                    "coherencia": respuesta.get("coherencia", 0.0),
+                })
+            except Exception:
+                pass
+
         reflexion = self._reflexionar(respuesta)
+
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("reflexion", {
+                    "score": reflexion.get("score", 0),
+                    "veredicto": reflexion.get("veredicto", ""),
+                })
+            except Exception:
+                pass
+
         integracion = self._integrar(reflexion, respuesta)
+
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("integracion", {
+                    "auto_mod": integracion.get("auto_mod", False),
+                    "genesis": integracion.get("genesis", 0),
+                })
+            except Exception:
+                pass
+
+        # Fase 9: simbolico en diario
+        simbolico = respuesta.get("simbolico", {})
+
+        if self.pulso_streaming is not None and simbolico:
+            try:
+                self.pulso_streaming.emitir("simbolico_arbol", {
+                    "coherencia_simbolica": simbolico.get("coherencia_simbolica", 0),
+                    "nodos_totales": simbolico.get("nodos_totales", 0),
+                })
+            except Exception:
+                pass
+
+        # Fase 10: almacenar en memoria viva
+        if self.memoria_viva is not None:
+            try:
+                self.memoria_viva.almacenar_descubrimiento(
+                    concepto=curiosidad.get("concepto", ""),
+                    tipo=curiosidad.get("tipo", ""),
+                    score=reflexion.get("score", 0.0),
+                    veredicto=reflexion.get("veredicto", "rutinario"),
+                    ciclo=self._ciclo_actual,
+                    conexiones_nuevas=respuesta.get("conexiones_nuevas", 0),
+                    simbolico=simbolico if simbolico else None,
+                )
+            except Exception:
+                pass
+
+            # Consolidar cada 10 ciclos
+            if self._ciclo_actual % 10 == 0:
+                try:
+                    consolidado = self.memoria_viva.consolidar()
+                    if self.pulso_streaming is not None:
+                        self.pulso_streaming.emitir("memoria_consolidacion", consolidado)
+                except Exception:
+                    pass
 
         entrada_diario = {
             "ciclo": self._ciclo_actual,
@@ -144,6 +234,7 @@ class VidaAutonoma:
             },
             "reflexion": reflexion,
             "integracion": integracion,
+            "simbolico": simbolico,
         }
         self._registrar_diario(entrada_diario)
 
@@ -259,6 +350,15 @@ class VidaAutonoma:
                 "prioridad": 0.5,
             })
 
+        # Fase 10: Memory deja vu
+        if self.memoria_viva is not None:
+            for c in candidatos:
+                try:
+                    dv = self.memoria_viva.detectar_deja_vu(c["concepto"])
+                    c["prioridad"] *= dv["factor_ajuste"]
+                except Exception:
+                    pass
+
         # Elegir con ruido + ajustes externos (circuito cerrado)
         for c in candidatos:
             factor = self._ajustes_curiosidad.get(c["tipo"], 1.0)
@@ -335,11 +435,23 @@ class VidaAutonoma:
         except Exception:
             pass
 
+        # Fase 9: Pensamiento profundo
+        simbolico = {}
+        if self.pensamiento_profundo is not None and concepto in self.sistema.conceptos:
+            try:
+                simbolico = self.pensamiento_profundo.profundizar(
+                    concepto,
+                    pensado.get("activaciones_finales", activaciones),
+                )
+            except Exception:
+                pass
+
         return {
             "activaciones": pensado.get("activaciones_finales", activaciones),
             "coherencia": float(pensado.get("coherencia_final", 0.0)),
             "convergencia": bool(pensado.get("convergencia", False)),
             "conexiones_nuevas": conexiones_nuevas,
+            "simbolico": simbolico,
         }
 
     # ------------------------------------------------------------------
@@ -354,6 +466,12 @@ class VidaAutonoma:
 
         novedad = min(1.0, conexiones / 3.0) if conexiones > 0 else 0.0
         score = novedad * 0.3 + coherencia * 0.4 + (0.3 if convergencia else 0.0)
+
+        # Fase 9: bonus simbolico (hasta +0.1)
+        coherencia_simb = float(respuesta.get("simbolico", {}).get("coherencia_simbolica", 0.0))
+        if coherencia_simb > 0:
+            score += coherencia_simb * 0.1
+
         score = round(min(1.0, max(0.0, score)), 4)
 
         if score > 0.7:

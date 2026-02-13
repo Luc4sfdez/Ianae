@@ -39,6 +39,9 @@ class IANAE:
         from src.core.suenos import MotorSuenos
         from src.core.dialogo import DialogoIANAE
         from src.core.evolucion import MotorEvolucion
+        from src.core.pensamiento_profundo import PensamientoProfundo
+        from src.core.memoria_viva import MemoriaViva
+        from src.core.pulso_streaming import PulsoStreaming
 
         # 1. Nucleo
         self.sistema = crear_universo_lucas()
@@ -50,6 +53,11 @@ class IANAE:
         # 3. Insights
         self.insights = InsightsEngine(self.sistema, self.pensamiento)
 
+        # 9/10/11. Subsistemas nuevos
+        self.pensamiento_profundo = PensamientoProfundo(self.sistema)
+        self.memoria_viva = MemoriaViva()
+        self.pulso_streaming = PulsoStreaming()
+
         # 4. Vida autonoma
         self.vida = VidaAutonoma(
             self.sistema,
@@ -59,6 +67,9 @@ class IANAE:
             diario_path=diario_path,
             consolidar_cada=consolidar_cada,
             snapshot_dir=snapshot_dir,
+            pensamiento_profundo=self.pensamiento_profundo,
+            memoria_viva=self.memoria_viva,
+            pulso_streaming=self.pulso_streaming,
         )
 
         # 5. Consciencia
@@ -109,17 +120,28 @@ class IANAE:
         from src.core.suenos import MotorSuenos
         from src.core.dialogo import DialogoIANAE
         from src.core.evolucion import MotorEvolucion
+        from src.core.pensamiento_profundo import PensamientoProfundo
+        from src.core.memoria_viva import MemoriaViva
+        from src.core.pulso_streaming import PulsoStreaming
 
         inst = object.__new__(cls)
         inst.sistema = sistema
         inst.pensamiento = PensamientoLucas(sistema)
         inst.insights = InsightsEngine(sistema, inst.pensamiento)
+
+        inst.pensamiento_profundo = PensamientoProfundo(sistema)
+        inst.memoria_viva = MemoriaViva()
+        inst.pulso_streaming = PulsoStreaming()
+
         inst.vida = VidaAutonoma(
             sistema, inst.pensamiento, inst.insights,
             intervalo_base=intervalo_base,
             diario_path=diario_path,
             consolidar_cada=consolidar_cada,
             snapshot_dir=snapshot_dir,
+            pensamiento_profundo=inst.pensamiento_profundo,
+            memoria_viva=inst.memoria_viva,
+            pulso_streaming=inst.pulso_streaming,
         )
         inst.consciencia = Consciencia(inst.vida, objetivos_path=objetivos_path)
         inst.suenos = MotorSuenos(sistema, inst.pensamiento)
@@ -195,11 +217,28 @@ class IANAE:
         # 4. Sonar con lo descubierto (imaginar extensiones)
         sueno = self._sonar_desde_descubrimiento(resultado_consciente)
 
+        if sueno and self.pulso_streaming:
+            try:
+                self.pulso_streaming.emitir("sueno", {
+                    "tipo": sueno.get("tipo", ""),
+                    "veredicto": sueno.get("evaluacion", {}).get("veredicto", "") if isinstance(sueno.get("evaluacion"), dict) else "",
+                })
+            except Exception:
+                pass
+
         # 5. Evolucionar cada 10 ciclos
         evolucion_resultado = None
         if self.vida._ciclo_actual % 10 == 0 and self.vida._ciclo_actual > 0:
             evolucion_resultado = self.evolucion.evolucionar()
             self.evolucion.guardar_estado()
+
+        if evolucion_resultado and self.pulso_streaming:
+            try:
+                self.pulso_streaming.emitir("evolucion", {
+                    "generacion": self.evolucion._generacion,
+                })
+            except Exception:
+                pass
 
         return {
             "timestamp": ts,
@@ -344,6 +383,7 @@ class IANAE:
             "suenos_prometedores": len(self.suenos.suenos_prometedores()),
             "conversaciones": len(self.dialogo.historial()),
             "archivos_percibidos": len(self.evolucion.archivos_percibidos()),
+            "memoria_viva": self.memoria_viva.estadisticas() if self.memoria_viva else None,
         }
 
     def leer_conversaciones(self, ultimas: int = 10) -> List[Dict]:

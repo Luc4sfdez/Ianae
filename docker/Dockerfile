@@ -26,9 +26,9 @@ ENV PYTHONUNBUFFERED=1
 ENV IANAE_ENV=production
 ENV IANAE_DATA_DIR=/app/data
 
-EXPOSE 8000
+EXPOSE 24000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "from src.core.nucleo import ConceptosLucas; print('ok')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:24000/health')" || exit 1
 
-CMD ["python", "-c", "from src.core.nucleo import ConceptosLucas; s = ConceptosLucas(); print(f'IANAE running — {s.dim_vector}d vectors')"]
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "24000"]

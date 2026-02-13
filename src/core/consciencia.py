@@ -466,6 +466,37 @@ class Consciencia:
         # Normalizar: 0 genesis = 0.1, 10+ genesis = 1.0
         return round(min(1.0, 0.1 + genesis_total * 0.09), 4)
 
+    def profundidad_simbolica(self) -> Dict[str, Any]:
+        """Extrae coherencia y profundidad simbolica del diario reciente."""
+        entradas = self.vida.leer_diario(ultimos=20)
+        coherencias = []
+        profundidades = []
+        arboles = 0
+
+        for e in entradas:
+            simb = e.get("simbolico", {})
+            if simb and simb.get("nodos_totales", 0) > 0:
+                arboles += 1
+                coherencias.append(float(simb.get("coherencia_simbolica", 0.0)))
+                profundidades.append(int(simb.get("profundidad_max", 0)))
+
+        return {
+            "coherencia_media": round(sum(coherencias) / len(coherencias), 4) if coherencias else 0.0,
+            "profundidad_media": round(sum(profundidades) / len(profundidades), 4) if profundidades else 0.0,
+            "arboles_construidos": arboles,
+        }
+
+    def profundidad_memoria(self) -> Dict[str, Any]:
+        """Estadisticas de memoria viva (si existe)."""
+        if self.vida.memoria_viva is None:
+            return {"activa": False}
+        try:
+            stats = self.vida.memoria_viva.estadisticas()
+            stats["activa"] = True
+            return stats
+        except Exception:
+            return {"activa": False}
+
     # ==================================================================
     # AJUSTE DE CURIOSIDAD — retroalimenta VidaAutonoma
     # ==================================================================
@@ -513,6 +544,18 @@ class Consciencia:
             if pct > 0.5:
                 ajustes["serendipia"] *= 1.2
                 break
+
+        # Fuerza 6: Profundidad simbolica
+        prof = self.profundidad_simbolica()
+        if prof["coherencia_media"] > 0.6:
+            ajustes["puente"] *= 1.2  # explorar cross-domain
+        elif prof["coherencia_media"] < 0.3 and prof["arboles_construidos"] > 3:
+            ajustes["revitalizar"] *= 1.2
+
+        # Fuerza 7: Memoria saturada
+        mem = self.profundidad_memoria()
+        if mem.get("activa") and mem.get("total_activas", 0) > 50:
+            ajustes["serendipia"] *= 1.2  # buscar novedad
 
         return {k: round(v, 4) for k, v in ajustes.items()}
 
@@ -569,6 +612,8 @@ class Consciencia:
                 "capilaridad": len(cap),
                 "corrientes": cor,
                 "superficie": sup,
+                "profundidad_simbolica": self.profundidad_simbolica(),
+                "profundidad_memoria": self.profundidad_memoria(),
             },
             "ajustes_curiosidad": ajustes,
             "objetivos_progreso": progresos,

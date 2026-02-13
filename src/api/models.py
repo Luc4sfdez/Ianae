@@ -212,6 +212,15 @@ class OrganismoResponse(BaseModel):
     suenos_prometedores: int
     conversaciones: int
     archivos_percibidos: int = 0
+    memoria_viva: Optional[Dict] = None
+
+
+class StreamStatsResponse(BaseModel):
+    activo: bool
+    eventos_en_buffer: int
+    ultimo_id: int
+    tipos: Dict[str, int]
+    suscriptores: int
 
 
 class DiarioResponse(BaseModel):
