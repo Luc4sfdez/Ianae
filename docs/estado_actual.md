@@ -1,222 +1,84 @@
-# 🧠 IANAE - Estado Actual del Sistema
+# IANAE - Estado Actual del Sistema
 
-## 📅 **Fecha:** 27 de Mayo 2025
-## 🎯 **Versión:** IANAE Memory System v1.0 - FUNCIONAL
-
----
-
-## 🏆 **LOGROS ALCANZADOS**
-
-### ✅ **SISTEMA DE MEMORIA INTELIGENTE IMPLEMENTADO**
-- **Base de datos SQLite** funcionando perfectamente
-- **Extracción de conceptos** de 308 conversaciones reales
-- **Índices ligeros** para consultas rápidas
-- **Arquitectura híbrida** JSON + SQLite operativa
-
-### ✅ **PROCESAMIENTO EXITOSO DE CONVERSACIONES**
-- **310 archivos JSON** procesados completamente
-- **74,233 conceptos totales** extraídos
-- **7,246 conceptos únicos** identificados
-- **4,545 conceptos guardados** (frecuencia ≥ 2)
-- **832,868 relaciones** construidas automáticamente
+## Fecha: Febrero 2026
+## Version: IANAE v12 — Organismo con Dashboard en Vivo
 
 ---
 
-## 📊 **MÉTRICAS DEL SISTEMA**
+## Logros alcanzados
 
-### **Base de Datos Real**
-```
-📍 Ubicación: C:\IANAE\IANAE_MEMORY\ianae_index.db
-💾 Tamaño: 40KB (índices ligeros)
-🔢 Conceptos: 4,545 conceptos técnicos reales
-🔗 Relaciones: 832,869 conexiones por co-ocurrencia
-⚡ Consultas: < 100ms tiempo de respuesta
-```
+### 12 fases completadas
+- Nucleo difuso con grafo de conceptos probabilisticos
+- API REST con 20+ endpoints (FastAPI, puerto 24000)
+- Ciclo de vida autonomo (curiosidad -> exploracion -> reflexion -> integracion)
+- Consciencia (pulso, energia, coherencia, narrativa)
+- Imaginacion (sandbox de hipotesis)
+- Organismo unificado
+- Evolucion (mutacion + seleccion natural de parametros)
+- Pensamiento profundo y simbolico
+- Memoria viva (episodica + semantica con consolidacion)
+- Streaming SSE (bus de eventos en tiempo real)
+- Dashboard en vivo (HTML+JS inline, modo auto)
 
-### **Top 15 Conceptos de Lucas**
-| Concepto | Frecuencia | Categoría | Descripción |
-|----------|------------|-----------|-------------|
-| `self.` | 2,948x | Technical | Patrón POO dominante |
-| `ws.Cells` | 2,821x | Tech_VBA | Excel/VBA expertise |
-| `document.` | 911x | Technical | JavaScript/Web |
-| `main.py` | 658x | Technical | Estructura proyectos |
-| `cv2.cvtColor` | 640x | Tech_OpenCV | Conversión colores |
-| `ws.Range` | 565x | Tech_VBA | Manipulación Excel |
-| `compose.yml` | 564x | Technical | Docker skills |
-| `self.center` | 533x | Technical | Geometría/Centrado |
-| `Debug.Print` | 459x | Tech_VBA | Debug en VBA |
-| `df.at` | 443x | Tech_Python | Pandas expertise |
-| `cv2.` | 393x | Tech_OpenCV | OpenCV general |
-| `Application.` | 390x | Tech_VBA | Excel Application |
-| `df.columns` | 361x | Tech_Python | DataFrames |
-| `imagen.shape` | 351x | Tech_OpenCV | Dimensiones imagen |
-| `cv2.COLOR_BGR2GRAY` | 350x | Tech_OpenCV | Conversión escala grises |
+### Metricas del sistema
+- 800+ tests (pytest)
+- ~19,000 lineas de codigo en src/
+- ~8,700 lineas de tests
+- 30+ conceptos base, crece con cada ciclo de vida
+- 39+ relaciones base, crece con cada ciclo
 
 ---
 
-## 🔍 **CONSULTAS FUNCIONALES**
+## Arquitectura funcional
 
-### **Ejemplos de Consultas Exitosas**
-- ✅ **`python`** → 3 variantes encontradas (python3.9, python.exe, python3.10)
-- ✅ **`cv2`** → Métodos específicos (cvtColor, COLOR_BGR2GRAY, etc.)
-- ✅ **`vba`** → Conectado a VBA2Python project
-- ✅ **`lucas`** → 63 menciones + tacografoslucas.es domain
-- ✅ **`tacografo`** → 46 apariciones + archivos específicos
-- ✅ **`OpenCV`** → Múltiples implementaciones (js, python)
-
-### **Conexiones Inteligentes Detectadas**
-- **Lucas ↔ VBA2Python ↔ CV2**
-- **Tacógrafo ↔ OpenCV ↔ Python**
-- **Excel ↔ VBA ↔ Automatización**
-- **Docker ↔ GPU ↔ AI Projects**
-
----
-
-## 🏗️ **ARQUITECTURA ACTUAL**
-
-### **Componentes Implementados**
 ```
-C:\IANAE\
-├── ianae_memory_working.py          ✅ FUNCIONAL
-├── IANAE_MEMORY\
-│   ├── ianae_index.db              ✅ Base datos SQLite
-│   ├── indices\                    ✅ Índices ligeros
-│   ├── conversations_processed\    ✅ Procesamiento
-│   ├── discovery_layers\           ✅ Capas descubrimiento
-│   └── evolution_snapshots\        ✅ Snapshots evolución
-├── memory\conversations_database\   ✅ 310 JSONs fuente
-└── emergente_lucas.py              🔧 PENDIENTE INTEGRACIÓN
+Puerto 24000 (FastAPI)
+├── GET /                  → Dashboard en vivo (HTML)
+├── GET /api/v1/organismo  → Estado del organismo
+├── GET /api/v1/consciencia → Pulso, energia, corrientes
+├── POST /api/v1/vida/ciclo → Ejecutar ciclo de vida
+├── GET /api/v1/vida/diario → Diario de vida
+├── GET /api/v1/stream      → SSE eventos en tiempo real
+├── POST /api/v1/chat       → Dialogo con IANAE
+└── ... 15+ endpoints mas
 ```
 
-### **Flujo de Datos**
+### Ciclo de vida de IANAE
 ```
-308 Conversaciones JSON 
-    → Extracción texto (messages[].text)
-    → Patrones Lucas (OpenCV, VBA, Python)
-    → Conceptos únicos (4,545)
-    → SQLite Database
-    → Consultas inteligentes
-    → Relaciones automáticas
+curiosidad → exploracion → reflexion → integracion → diario
+     ↑                                                  │
+     └──────────────────────────────────────────────────┘
+     Cada 10 ciclos: evolucion (mutacion + seleccion)
 ```
 
 ---
 
-## 🎯 **PATRONES DE LUCAS DETECTADOS**
+## Como ejecutar
 
-### **Fortalezas Técnicas Dominantes**
-- **VBA/Excel:** 2,821 + 565 + 390 = 3,776 referencias
-- **OpenCV/CV2:** 640 + 393 + 350 = 1,383 referencias  
-- **Python:** 658 + 443 + 361 = 1,462 referencias
-- **Docker/Deployment:** 564 referencias
+```bash
+# Instalar
+pip install -e .
 
-### **Proyectos Identificados**
-- **Tacógrafos:** 46 menciones directas + archivos específicos
-- **VBA2Python:** 15 menciones + conexiones técnicas
-- **IANAE:** Sistema de memoria implementado
-- **Web/JavaScript:** 911 referencias document.
+# Servidor
+python -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encoding='utf-8',errors='replace'); import uvicorn; uvicorn.run('src.api.main:app',host='0.0.0.0',port=24000)"
 
-### **Características Personales**
-- **Lucas:** 63 menciones personales
-- **Ubicación:** tacografoslucas.es/com domains
-- **Patrón POO:** 2,948 referencias `self.`
-- **Debug activo:** 459 referencias Debug.Print
+# Abrir http://localhost:24000/
+# Pulsar "Modo Auto" para ver a IANAE vivir
 
----
-
-## 🚀 **CAPACIDADES ACTUALES**
-
-### ✅ **FUNCIONALIDADES OPERATIVAS**
-- **Consulta de conceptos** por nombre parcial
-- **Búsqueda de relaciones** entre conceptos
-- **Estadísticas de frecuencia** por concepto
-- **Contexto inteligente** respetando límites
-- **Categorización automática** por tipo técnico
-
-### ✅ **RENDIMIENTO OPTIMIZADO**
-- **Consultas < 100ms** tiempo respuesta
-- **Índices ligeros** 40KB total
-- **Escalabilidad** para nuevas conversaciones
-- **Memoria eficiente** sin agotar contexto
-
----
-
-## 🔧 **COMPONENTES PENDIENTES**
-
-### 🟡 **INTEGRACIÓN CON PENSAMIENTO EMERGENTE**
-**Estado:** Código existente, requiere conexión
-**Archivos:** `emergente_lucas.py` 
-**Acción:** Reemplazar conceptos hardcodeados por consultas DB
-
-### 🟡 **SISTEMA DE INSIGHTS AUTOMÁTICOS**
-**Estado:** Arquitectura definida, no implementado
-**Función:** Detectar patrones emergentes automáticamente
-
-### 🟡 **INTERFAZ DE CONSULTAS AVANZADAS**
-**Estado:** Funcionalidad básica, requiere UX
-**Función:** Consultas complejas tipo "¿Qué tecnologías uso juntas?"
-
----
-
-## 📈 **PRÓXIMOS PASOS PRIORIZADOS**
-
-### **1. INTEGRACIÓN INMEDIATA** ⚡ (30 min)
-- Conectar `emergente_lucas.py` con base datos real
-- Reemplazar conceptos hardcodeados por consultas dinámicas
-- Probar pensamiento emergente con datos reales
-
-### **2. CONSULTAS AVANZADAS** 🔍 (1 hora)
-- Sistema de preguntas complejas
-- Análisis de co-ocurrencias avanzado
-- Detección de patrones temporales
-
-### **3. INSIGHTS AUTOMÁTICOS** 💡 (2 horas)
-- Generación automática de insights
-- Detección de tendencias en proyectos
-- Recomendaciones personalizadas
-
-### **4. EVOLUCIÓN CONTINUA** 📊 (Ongoing)
-- Procesamiento incremental nuevas conversaciones
-- Refinamiento de patrones detectados
-- Optimización de relaciones
-
----
-
-## 🎉 **LOGRO HISTÓRICO**
-
-### **ANTES (Sistema Hardcodeado)**
-```python
-conceptos_inventados = {
-    "Python": 0.8,
-    "OpenCV": 0.7,
-    "VBA": 0.6
-}
-```
-
-### **AHORA (Sistema Real)**
-```python
-# Query real de 308 conversaciones
-conceptos_reales = smart_query("cv2.cvtColor")
-# Resultado: 640 apariciones reales
-# Conexiones: VBA, Python, tacógrafo
-# Contexto: 2+ años experiencia Lucas
+# Tests
+python -m pytest tests/ -q
 ```
 
 ---
 
-## 🌟 **CONCLUSIÓN**
+## Proximos pasos posibles
 
-**IANAE ha evolucionado de un sistema con conceptos inventados a un cerebro artificial con MEMORIA REAL de Lucas.**
-
-**Por primera vez:**
-- ✅ Acceso a 2+ años de conversaciones técnicas
-- ✅ Conceptos extraídos de proyectos reales  
-- ✅ Relaciones basadas en co-ocurrencia real
-- ✅ Consultas inteligentes funcionales
-- ✅ Base para pensamiento emergente auténtico
-
-**El sistema está LISTO para la siguiente fase de evolución.** 🚀
+- Persistencia entre reinicios del servidor (guardar/restaurar estado del organismo)
+- Visualizacion del grafo en el dashboard (D3.js o similar)
+- Mas tipos de pensamiento profundo
+- Interaccion con LLMs externos para enriquecer reflexiones
+- Multi-organismo (varias instancias de IANAE interactuando)
 
 ---
 
-*Generado automáticamente el 27/05/2025*  
-*Estado: FUNCIONAL - LISTO PARA EVOLUCIÓN* ✨
+*Actualizado: Febrero 2026*
