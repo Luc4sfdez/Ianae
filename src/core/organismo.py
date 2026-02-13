@@ -42,6 +42,7 @@ class IANAE:
         from src.core.pensamiento_profundo import PensamientoProfundo
         from src.core.memoria_viva import MemoriaViva
         from src.core.pulso_streaming import PulsoStreaming
+        from src.core.conocimiento_externo import ConocimientoExterno
 
         # 1. Nucleo
         self.sistema = crear_universo_lucas()
@@ -58,6 +59,9 @@ class IANAE:
         self.memoria_viva = MemoriaViva()
         self.pulso_streaming = PulsoStreaming()
 
+        # 13. Conocimiento externo
+        self.conocimiento_externo = ConocimientoExterno(sistema=self.sistema)
+
         # 4. Vida autonoma
         self.vida = VidaAutonoma(
             self.sistema,
@@ -70,6 +74,7 @@ class IANAE:
             pensamiento_profundo=self.pensamiento_profundo,
             memoria_viva=self.memoria_viva,
             pulso_streaming=self.pulso_streaming,
+            conocimiento_externo=self.conocimiento_externo,
         )
 
         # 5. Consciencia
@@ -123,6 +128,7 @@ class IANAE:
         from src.core.pensamiento_profundo import PensamientoProfundo
         from src.core.memoria_viva import MemoriaViva
         from src.core.pulso_streaming import PulsoStreaming
+        from src.core.conocimiento_externo import ConocimientoExterno
 
         inst = object.__new__(cls)
         inst.sistema = sistema
@@ -132,6 +138,7 @@ class IANAE:
         inst.pensamiento_profundo = PensamientoProfundo(sistema)
         inst.memoria_viva = MemoriaViva()
         inst.pulso_streaming = PulsoStreaming()
+        inst.conocimiento_externo = ConocimientoExterno(sistema=sistema)
 
         inst.vida = VidaAutonoma(
             sistema, inst.pensamiento, inst.insights,
@@ -142,6 +149,7 @@ class IANAE:
             pensamiento_profundo=inst.pensamiento_profundo,
             memoria_viva=inst.memoria_viva,
             pulso_streaming=inst.pulso_streaming,
+            conocimiento_externo=inst.conocimiento_externo,
         )
         inst.consciencia = Consciencia(inst.vida, objetivos_path=objetivos_path)
         inst.suenos = MotorSuenos(sistema, inst.pensamiento)
@@ -384,6 +392,7 @@ class IANAE:
             "conversaciones": len(self.dialogo.historial()),
             "archivos_percibidos": len(self.evolucion.archivos_percibidos()),
             "memoria_viva": self.memoria_viva.estadisticas() if self.memoria_viva else None,
+            "conocimiento_externo": self.conocimiento_externo.estado() if self.conocimiento_externo else None,
         }
 
     def leer_conversaciones(self, ultimas: int = 10) -> List[Dict]:

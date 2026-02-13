@@ -207,6 +207,35 @@ def dashboard_html() -> str:
                     <div class="text-xs text-gray-600">--</div>
                 </div>
             </div>
+
+            <!-- Conocimiento Externo (Fase 13) -->
+            <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+                <h2 class="text-sm font-semibold text-gray-400 mb-3">CONOCIMIENTO EXTERNO</h2>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Estado</span>
+                        <span id="ce-estado" class="text-teal-400 font-semibold">--</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Exploraciones</span>
+                        <span id="ce-exploraciones" class="text-gray-300">0</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Absorbidos</span>
+                        <span id="ce-absorbidos" class="text-green-400">0</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Rechazados</span>
+                        <span id="ce-rechazados" class="text-red-400">0</span>
+                    </div>
+                    <div class="pt-2 border-t border-gray-800">
+                        <div class="text-xs text-gray-500 mb-1">Fuentes</div>
+                        <div id="ce-fuentes" class="flex flex-wrap gap-1">
+                            <span class="text-xs text-gray-600">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -222,6 +251,7 @@ const EVENT_COLORS = {
     sueno:                  { color: 'text-indigo-400',  bg: 'bg-indigo-900/30',  icon: 'z' },
     evolucion:              { color: 'text-orange-400',  bg: 'bg-orange-900/30',  icon: '^' },
     memoria_consolidacion:  { color: 'text-gray-400',    bg: 'bg-gray-800/50',    icon: 'm' },
+    exploracion_externa:    { color: 'text-teal-400',    bg: 'bg-teal-900/30',    icon: 'W' },
 };
 const MAX_EVENTS = 100;
 let eventCount = 0;
@@ -290,6 +320,7 @@ function buildSummary(tipo, data) {
     if (tipo === 'evolucion') return `gen ${data.generacion || '?'}`;
     if (tipo === 'sueno') return data.veredicto || '';
     if (tipo === 'memoria_consolidacion') return `memorias: ${data.consolidadas || data.total || '?'}`;
+    if (tipo === 'exploracion_externa') return `${data.concepto || '?'} — ${data.absorbidos || 0} absorbidos (${data.fuente || '?'})`;
     // default
     const s = JSON.stringify(data);
     return s.length > 80 ? s.slice(0, 80) + '...' : s;
@@ -490,14 +521,38 @@ function escapeHtml(text) {
     return d.innerHTML;
 }
 
+// ===== CONOCIMIENTO EXTERNO =====
+async function pollConocimiento() {
+    try {
+        const r = await fetch('/api/v1/conocimiento');
+        if (!r.ok) return;
+        const d = await r.json();
+        document.getElementById('ce-estado').textContent = d.habilitado ? 'Activo' : 'Inactivo';
+        document.getElementById('ce-estado').className = d.habilitado ? 'text-teal-400 font-semibold' : 'text-gray-500 font-semibold';
+        document.getElementById('ce-exploraciones').textContent = d.exploraciones || 0;
+        const filtro = d.filtro || {};
+        document.getElementById('ce-absorbidos').textContent = filtro.absorbidos_total || 0;
+        document.getElementById('ce-rechazados').textContent = filtro.rechazados_total || 0;
+        const fuentes = d.fuentes || {};
+        const badges = Object.entries(fuentes).map(([name, info]) => {
+            const avail = info && info.disponible;
+            const cls = avail ? 'bg-teal-900/50 text-teal-300' : 'bg-gray-800 text-gray-600';
+            return `<span class="text-xs px-1.5 py-0.5 rounded ${cls}">${name}</span>`;
+        }).join('');
+        document.getElementById('ce-fuentes').innerHTML = badges || '<span class="text-xs text-gray-600">--</span>';
+    } catch(_) {}
+}
+
 // ===== INIT =====
 connectSSE();
 pollOrganismo();
 pollConsciencia();
 pollDiario();
+pollConocimiento();
 setInterval(pollOrganismo, 3000);
 setInterval(pollConsciencia, 5000);
 setInterval(pollDiario, 10000);
+setInterval(pollConocimiento, 5000);
 </script>
 </body>
 </html>'''

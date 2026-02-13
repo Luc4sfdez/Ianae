@@ -31,6 +31,7 @@ from src.api.models import (
     SuenoRequest, SuenoResponse,
     ConscienciaResponse, OrganismoResponse, DiarioResponse,
     StreamStatsResponse,
+    ConocimientoConfigRequest, ExploracionExternaRequest, RSSFeedRequest,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -728,6 +729,73 @@ async def stream_stats():
     if ps is None:
         return StreamStatsResponse(activo=False, eventos_en_buffer=0, ultimo_id=0, tipos={}, suscriptores=0)
     return StreamStatsResponse(**ps.estadisticas())
+
+
+# --- Conocimiento Externo (Fase 13) ---
+
+
+@app.get("/api/v1/conocimiento", tags=["conocimiento"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_conocimiento():
+    """Estado del sistema de conocimiento externo."""
+    org = get_organismo()
+    ce = getattr(org, "conocimiento_externo", None)
+    if ce is None:
+        return {"habilitado": False}
+    return ce.estado()
+
+
+@app.post("/api/v1/conocimiento/configurar", tags=["conocimiento"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def configurar_conocimiento(body: ConocimientoConfigRequest):
+    """Configura el sistema de conocimiento externo."""
+    org = get_organismo()
+    ce = getattr(org, "conocimiento_externo", None)
+    if ce is None:
+        raise HTTPException(status_code=503, detail="Conocimiento externo no disponible")
+    kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
+    return ce.configurar(**kwargs)
+
+
+@app.post("/api/v1/conocimiento/explorar", tags=["conocimiento"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def explorar_externo(body: ExploracionExternaRequest):
+    """Explora conocimiento externo sobre un concepto."""
+    org = get_organismo()
+    ce = getattr(org, "conocimiento_externo", None)
+    if ce is None:
+        raise HTTPException(status_code=503, detail="Conocimiento externo no disponible")
+    return ce.explorar_externo(body.concepto, fuente=body.fuente)
+
+
+@app.get("/api/v1/conocimiento/fuentes", tags=["conocimiento"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_fuentes():
+    """Lista fuentes de conocimiento externo y su estado."""
+    org = get_organismo()
+    ce = getattr(org, "conocimiento_externo", None)
+    if ce is None:
+        return {"fuentes": {}}
+    return {
+        "fuentes": {
+            "wikipedia": ce.wikipedia.estado(),
+            "rss": ce.rss.estado(),
+            "web": ce.web.estado(),
+            "archivos": ce.archivos.estado(),
+        }
+    }
+
+
+@app.post("/api/v1/conocimiento/rss", tags=["conocimiento"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def agregar_rss(body: RSSFeedRequest):
+    """Agrega un feed RSS al sistema de conocimiento externo."""
+    org = get_organismo()
+    ce = getattr(org, "conocimiento_externo", None)
+    if ce is None:
+        raise HTTPException(status_code=503, detail="Conocimiento externo no disponible")
+    ce.rss.agregar_feed(body.url)
+    return {"status": "ok", "feeds": ce.rss.listar_feeds()}
 
 
 # --- Entry point ---

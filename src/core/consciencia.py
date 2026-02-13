@@ -505,7 +505,7 @@ class Consciencia:
         """Calcula factores de ajuste para la curiosidad basado en todas las fuerzas."""
         ajustes: Dict[str, float] = {
             "gap": 1.0, "revitalizar": 1.0, "puente": 1.0,
-            "prediccion": 1.0, "serendipia": 1.0,
+            "prediccion": 1.0, "serendipia": 1.0, "exploracion_externa": 1.0,
         }
 
         # Fuerza 1: Sesgos → reducir tipo dominante
@@ -556,6 +556,12 @@ class Consciencia:
         mem = self.profundidad_memoria()
         if mem.get("activa") and mem.get("total_activas", 0) > 50:
             ajustes["serendipia"] *= 1.2  # buscar novedad
+
+        # Fuerza 8: Conocimiento estancado → boost exploracion externa
+        patrones = self.analizar_patrones_propios()
+        rut_pct = patrones.get("veredictos_distribucion", {}).get("rutinario", 0)
+        if rut_pct > 0.5:
+            ajustes["exploracion_externa"] *= 1.5  # buscar fuera
 
         return {k: round(v, 4) for k, v in ajustes.items()}
 

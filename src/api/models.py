@@ -226,3 +226,21 @@ class StreamStatsResponse(BaseModel):
 class DiarioResponse(BaseModel):
     entradas: List[Dict[str, Any]]
     total: int
+
+
+# --- Conocimiento Externo (Fase 13) ---
+
+class ConocimientoConfigRequest(BaseModel):
+    habilitado: Optional[bool] = Field(None, description="Habilitar/deshabilitar")
+    probabilidad_externa: Optional[float] = Field(None, ge=0, le=1, description="Probabilidad de exploracion externa")
+    max_conceptos_por_ciclo: Optional[int] = Field(None, ge=1, le=20, description="Max conceptos absorbidos por ciclo")
+    umbral_relevancia: Optional[float] = Field(None, ge=0, le=1, description="Umbral minimo de relevancia")
+
+
+class ExploracionExternaRequest(BaseModel):
+    concepto: str = Field(..., min_length=1, max_length=200, description="Concepto a explorar")
+    fuente: Optional[str] = Field(None, description="Fuente especifica: wikipedia, rss, web, archivos")
+
+
+class RSSFeedRequest(BaseModel):
+    url: str = Field(..., min_length=5, description="URL del feed RSS/Atom")

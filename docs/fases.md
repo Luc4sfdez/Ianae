@@ -1,6 +1,6 @@
 # IANAE — Historial de Fases de Desarrollo
 
-12 fases completadas. De un grafo de conceptos a un organismo digital que vive.
+13 fases completadas. De un grafo de conceptos a un organismo digital que vive y se alimenta del mundo.
 
 ---
 
@@ -251,7 +251,49 @@ Fase 9:  Piensa en profundidad
 Fase 10: Recuerda
 Fase 11: Tiene sistema nervioso
 Fase 12: Se puede ver vivir
+Fase 13: Se alimenta del mundo exterior
 ```
+
+---
+
+## Fase 13: Conocimiento Externo — IANAE se abre al mundo
+
+**Branch:** `master`
+
+IANAE deja de ser un sistema cerrado. Ahora puede forrajear conocimiento del mundo exterior — Wikipedia, feeds RSS, busqueda web y archivos locales — y digerirlo a traves de un pipeline de calidad que filtra, puntua y absorbe solo lo relevante en su grafo de conceptos.
+
+**Metafora de digestion (5 etapas):**
+1. **Appetite** — La curiosidad decide QUE buscar (gaps, estancamiento)
+2. **Foraging** — Un adaptador obtiene contenido crudo de una fuente
+3. **Digestion** — NLP extrae conceptos; filtro de calidad puntua relevancia
+4. **Absorption** — Solo conceptos que superan umbral entran al grafo (rate-limited)
+5. **Integration** — Pipeline estandar de reflexion evalua el resultado
+
+**Componentes:**
+- `conocimiento_externo.py` — Modulo completo: 4 fuentes (Wikipedia, RSS, Web, Archivos), FiltroDigestion, ConocimientoExterno orquestador
+- Fuentes usan solo stdlib (urllib, xml.etree, os) — cero dependencias nuevas
+- FiltroDigestion con NLP opcional (fallback a extraccion basica por frecuencia)
+- 5 endpoints API nuevos: estado, configurar, explorar, fuentes, agregar RSS
+- Panel "CONOCIMIENTO EXTERNO" en dashboard con estado, contadores y badges de fuentes
+
+**Salvaguardas contra desbordamiento del grafo:**
+- Rate limit: max 5 conceptos absorbidos por ciclo
+- Umbral de relevancia: 0.3 minimo
+- Gate probabilistico: solo 20% de los ciclos exploran externamente
+- Incertidumbre alta: conceptos externos con incertidumbre=0.3 (decaen mas rapido)
+- Relaciones debiles: multiplicadas por 0.6
+- Etiquetado: categoria `conocimiento_externo` para identificacion facil
+- Consciencia: Fuerza 8 boostea exploracion externa cuando >50% rutinarios
+
+**Integracion con subsistemas existentes:**
+- VidaAutonoma: nuevo tipo de curiosidad `exploracion_externa` con template propio
+- Consciencia: ajuste de curiosidad incluye `exploracion_externa`, Fuerza 8
+- PulsoStreaming: nuevo tipo de evento `exploracion_externa`
+- Organismo: instancia ConocimientoExterno, pasada a VidaAutonoma, incluida en estado()
+
+**Tests:** 69 tests unitarios + 6 tests API = 75 nuevos. Total suite: 876 tests.
+
+**Env var:** `IANAE_CONOCIMIENTO_EXTERNO=true` para habilitar (deshabilitado por defecto)
 
 ---
 

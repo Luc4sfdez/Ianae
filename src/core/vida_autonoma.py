@@ -34,9 +34,13 @@ TEMPLATES = {
     "serendipia": [
         "Que descubrimientos inesperados surgen de {concepto}?",
     ],
+    "exploracion_externa": [
+        "Que sabe el mundo exterior sobre {concepto}?",
+        "Que conocimiento externo puede enriquecer {concepto}?",
+    ],
 }
 
-TIPOS_CURIOSIDAD = {"gap", "revitalizar", "puente", "prediccion", "serendipia"}
+TIPOS_CURIOSIDAD = {"gap", "revitalizar", "puente", "prediccion", "serendipia", "exploracion_externa"}
 
 
 class VidaAutonoma:
@@ -54,6 +58,7 @@ class VidaAutonoma:
         pensamiento_profundo=None,
         memoria_viva=None,
         pulso_streaming=None,
+        conocimiento_externo=None,
     ):
         self.sistema = sistema
         self.pensamiento = pensamiento
@@ -63,10 +68,11 @@ class VidaAutonoma:
         self.consolidar_cada = consolidar_cada
         self.snapshot_dir = snapshot_dir
 
-        # Fase 9/10/11: subsistemas opcionales
+        # Fase 9/10/11/13: subsistemas opcionales
         self.pensamiento_profundo = pensamiento_profundo
         self.memoria_viva = memoria_viva
         self.pulso_streaming = pulso_streaming
+        self.conocimiento_externo = conocimiento_externo
 
         self._corriendo = False
         self._ciclo_actual = 0
@@ -350,6 +356,20 @@ class VidaAutonoma:
                 "prioridad": 0.5,
             })
 
+        # Fase 13: Exploracion externa
+        if self.conocimiento_externo is not None:
+            try:
+                if self.conocimiento_externo.deberia_explorar_externo():
+                    elegido = random.choice(conceptos_sistema)
+                    candidatos.append({
+                        "tipo": "exploracion_externa",
+                        "concepto": elegido,
+                        "motivacion": f"Buscar conocimiento externo sobre {elegido}",
+                        "prioridad": 0.6,
+                    })
+            except Exception:
+                pass
+
         # Fase 10: Memory deja vu
         if self.memoria_viva is not None:
             for c in candidatos:
@@ -396,6 +416,10 @@ class VidaAutonoma:
 
     def _explorar(self, curiosidad: Dict[str, Any]) -> Dict[str, Any]:
         """Propaga + pensamiento recursivo."""
+        # Fase 13: explorar externamente si es ese tipo
+        if curiosidad.get("tipo") == "exploracion_externa":
+            return self._explorar_externo(curiosidad)
+
         concepto = curiosidad.get("concepto", "")
 
         if concepto not in self.sistema.conceptos:
@@ -452,6 +476,56 @@ class VidaAutonoma:
             "convergencia": bool(pensado.get("convergencia", False)),
             "conexiones_nuevas": conexiones_nuevas,
             "simbolico": simbolico,
+        }
+
+    # ------------------------------------------------------------------
+    # Explorar externo (Fase 13)
+    # ------------------------------------------------------------------
+
+    def _explorar_externo(self, curiosidad: Dict[str, Any]) -> Dict[str, Any]:
+        """Delega a ConocimientoExterno y luego propaga para coherencia."""
+        concepto = curiosidad.get("concepto", "")
+        resultado_externo: Dict[str, Any] = {}
+
+        if self.conocimiento_externo is not None:
+            try:
+                resultado_externo = self.conocimiento_externo.explorar_externo(concepto)
+            except Exception:
+                logger.debug("Error en exploracion externa de '%s'", concepto)
+
+        absorbidos = resultado_externo.get("absorbidos", [])
+        conexiones_nuevas = len(absorbidos)
+
+        # Propagar para medir coherencia despues de absorber
+        coherencia = 0.0
+        convergencia = False
+        if concepto in self.sistema.conceptos:
+            try:
+                pensado = self.pensamiento.pensar_recursivo(concepto, max_ciclos=2)
+                coherencia = float(pensado.get("coherencia_final", 0.0))
+                convergencia = bool(pensado.get("convergencia", False))
+            except Exception:
+                pass
+
+        # Emitir evento SSE
+        if self.pulso_streaming is not None:
+            try:
+                self.pulso_streaming.emitir("exploracion_externa", {
+                    "concepto": concepto,
+                    "fuente": resultado_externo.get("fuente", ""),
+                    "absorbidos": conexiones_nuevas,
+                    "rechazados": resultado_externo.get("rechazados", 0),
+                })
+            except Exception:
+                pass
+
+        return {
+            "activaciones": {},
+            "coherencia": coherencia,
+            "convergencia": convergencia,
+            "conexiones_nuevas": conexiones_nuevas,
+            "simbolico": {},
+            "exploracion_externa": resultado_externo,
         }
 
     # ------------------------------------------------------------------
