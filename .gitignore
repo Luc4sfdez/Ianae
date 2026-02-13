@@ -51,6 +51,18 @@ htmlcov/
 # Cache daemon
 orchestra/daemon/cache/
 
+# Runtime data (generado por ciclos de vida)
+data/
+tmp_*.json
+*pendientes.json
+
+# Claude Code
+.claude/
+
+# Orchestra debug artifacts
+orchestra/daemon/debug_*
+orchestra/daemon/last_llm_response.txt
+
 # OS
 .DS_Store
 Thumbs.db
