@@ -71,10 +71,12 @@ docs/
 ## Como levantar el servidor en Windows
 
 ```bash
-python -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encoding='utf-8',errors='replace'); import uvicorn; uvicorn.run('src.api.main:app',host='0.0.0.0',port=24000)"
+python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encoding='utf-8',errors='replace'); from src.api.main import app; import uvicorn; uvicorn.run(app,host='0.0.0.0',port=24000)"
 ```
 
-El wrapper de stdout es necesario porque `nucleo.py:1144` hace `print("🚀...")` y la consola Windows cp1252 no soporta emojis. En Docker/Linux no hace falta.
+- `-B` evita bytecode cache (`.pyc`) que puede causar que rutas nuevas no se registren
+- `from src.api.main import app` importa el objeto directamente en vez de pasar string a uvicorn (evita re-import con cache stale)
+- El wrapper de stdout es necesario porque `nucleo.py:1144` hace `print("🚀...")` y la consola Windows cp1252 no soporta emojis. En Docker/Linux no hace falta.
 
 ## Patrones del codigo
 
