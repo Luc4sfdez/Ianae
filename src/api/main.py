@@ -11,7 +11,10 @@ Uso:
 import numpy as np
 from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+from src.api.dashboard import dashboard_html
 
 from src.api.models import (
     ConceptCreate, ConceptResponse, ConceptDetail,
@@ -102,6 +105,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Dashboard ---
+
+@app.get("/", response_class=HTMLResponse, tags=["dashboard"])
+async def dashboard():
+    """Dashboard en vivo — IANAE vida en tiempo real."""
+    return HTMLResponse(content=dashboard_html())
 
 
 # --- Health ---
@@ -665,6 +676,14 @@ async def get_diario(
     org = get_organismo()
     entradas = org.vida.leer_diario(ultimos=ultimos)
     return DiarioResponse(entradas=entradas, total=len(entradas))
+
+
+@app.post("/api/v1/vida/ciclo", tags=["organismo"])
+async def ejecutar_ciclo():
+    """Dispara un ciclo de vida completo de IANAE."""
+    org = get_organismo()
+    resultado = org.ciclo_completo()
+    return resultado
 
 
 # --- Streaming (Fase 11) ---
