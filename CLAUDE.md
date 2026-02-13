@@ -4,10 +4,10 @@
 
 IANAE (Inteligencia Adaptativa No Algoritmica Emergente) es un organismo digital en Python. No es un chatbot ni una red neuronal — es un sistema basado en conceptos difusos, relaciones probabilisticas y comportamiento emergente que vive ciclos de vida autonomos: elige curiosidades, explora, reflexiona, suena, evoluciona y se auto-modifica.
 
-## Estado actual: 12 fases completadas
+## Estado actual: 13 fases completadas
 
-- **800+ tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
-- **~19,000 lineas** de codigo en `src/`, **~8,700** en `tests/`
+- **876 tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
+- **~19,500 lineas** de codigo en `src/`, **~9,400** en `tests/`
 - **Branch**: `master` (es la principal, se pushea con `git push origin master`)
 - Docs detallados de cada fase en `docs/fases.md`
 
@@ -27,21 +27,22 @@ src/
 │   ├── suenos.py              # Sandbox de hipotesis
 │   ├── evolucion.py           # Mutacion + seleccion natural cada 10 ciclos
 │   ├── persistencia.py        # SQLite para vectores numpy
+│   ├── conocimiento_externo.py # Fase 13: fuentes externas (Wiki, RSS, Web, Archivos) + filtro digestion
 │   ├── insights.py            # Comunidades, puentes, analisis predictivo
 │   └── aprendizaje_refuerzo.py
 ├── api/
-│   ├── main.py                # FastAPI, 20+ endpoints, puerto 24000
+│   ├── main.py                # FastAPI, 25+ endpoints, puerto 24000
 │   ├── dashboard.py           # dashboard_html() — HTML+JS+CSS inline, dashboard de vida
 │   ├── models.py              # Pydantic models
 │   └── auth.py                # API key (opcional si IANAE_API_KEYS esta seteado) + rate limit
 ├── nlp/                       # Pipeline NLP (extractor + pipeline)
 └── ui/app/                    # Dashboard Orchestra separado (puerto 25501, NO es el de vida)
 
-tests/                         # 800+ tests (core/, api/, nlp/, sdk/, ui/)
+tests/                         # 876 tests (core/, api/, nlp/, sdk/, ui/)
 docker/                        # Dockerfile multi-stage
 orchestra/                     # Daemon + workers
 docs/
-├── fases.md                   # Historial detallado de las 12 fases
+├── fases.md                   # Historial detallado de las 13 fases
 └── estado_actual.md           # Estado febrero 2026
 ```
 
@@ -57,8 +58,15 @@ docs/
 | GET | `/api/v1/stream` | No | SSE eventos en vivo (EventSource) |
 | POST | `/api/v1/chat` | Si* | Hablar con IANAE |
 | GET | `/api/v1/concepts` | Si* | Listar conceptos |
+| GET | `/api/v1/conocimiento` | Si* | Estado del conocimiento externo |
+| POST | `/api/v1/conocimiento/configurar` | Si* | Configurar conocimiento externo |
+| POST | `/api/v1/conocimiento/explorar` | Si* | Explorar concepto en fuentes externas |
+| GET | `/api/v1/conocimiento/fuentes` | Si* | Listar fuentes y su estado |
+| POST | `/api/v1/conocimiento/rss` | Si* | Agregar feed RSS |
 
 *Auth solo si `IANAE_API_KEYS` env var esta configurado. Sin ella, todo es abierto.
+
+**Env var para conocimiento externo:** `IANAE_CONOCIMIENTO_EXTERNO=true` habilita el forrajeo. Deshabilitado por defecto.
 
 ## Como levantar el servidor en Windows
 
@@ -90,10 +98,11 @@ El wrapper de stdout es necesario porque `nucleo.py:1144` hace `print("🚀...")
 10. Memoria viva (episodica + semantica con consolidacion)
 11. Streaming SSE (bus de eventos en tiempo real)
 12. Dashboard en vivo con modo auto
+13. Conocimiento externo (Wikipedia, RSS, Web, Archivos + filtro digestion)
 
 ## Reglas importantes
 
-- No tocar `src/core/` a menos que se pida — es el nucleo estable con 800 tests
+- No tocar `src/core/` a menos que se pida — es el nucleo estable con 876 tests
 - Branch `master` pushea a `origin/master` (no a main)
 - Los archivos en `data/` y `tmp_*` son runtime, no van al repo
 - Siempre correr tests despues de cambios: `python -m pytest tests/ -q`
