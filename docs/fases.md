@@ -323,4 +323,33 @@ IANAE obtiene autoconocimiento estructural genuino. Usando `ast.parse()` analiza
 
 ---
 
+## Fase 15: Grafo Interactivo — IANAE se Hace Visible
+
+**Branch:** `master`
+
+IANAE obtiene ojos. Dos grafos D3.js interactivos en el dashboard de vida muestran en tiempo real el grafo de conceptos difusos (con comunidades, puentes, colores por categoria) y el grafo de dependencias entre modulos Python (con flechas direccionales de imports AST).
+
+**Componentes:**
+- `dashboard.py` — D3.js v7 via CDN, dos vistas con tab switcher (Conceptos / Arquitectura)
+- Grafo de Conceptos: force-directed, nodos coloreados por categoria (10 colores), tamanio por activaciones/fuerza, community hulls convexos, puentes con anillo blanco, zoom/pan/drag, click highlight vecinos
+- Grafo de Arquitectura: force-directed dirigido con flechas SVG marker, violeta para core, slate para otros, tamanio por lineas de codigo, tooltips con docstring
+- `models.py` — `DependenciasResponse` (nodos, aristas, total_modulos, total_dependencias)
+- `main.py` — endpoint `GET /api/v1/introspeccion/dependencias` — datos D3-ready del grafo de dependencias
+
+**Datos consumidos:**
+- `GET /api/v1/network` — nodos y aristas del grafo de conceptos
+- `GET /api/v1/insights/patrones` — comunidades y puentes
+- `GET /api/v1/introspeccion/dependencias` — modulos y sus imports (nuevo)
+
+**Interactividad:**
+- Zoom/pan con d3.zoom (0.3x-4x), boton Reset
+- Drag nodes con fix temporal
+- Click node: tooltip con detalle + highlight de vecinos (dim no-vecinos)
+- Click fondo: reset highlight
+- Polling cada 8s, tambien tras Vivir ciclos y modo Auto
+
+**Tests:** 6 tests API nuevos. Total suite: 908 tests (907 passed, 1 pre-existente falla).
+
+---
+
 *Documentacion actualizada: Febrero 2026*

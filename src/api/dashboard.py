@@ -15,6 +15,7 @@ def dashboard_html() -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IANAE — Vida en Tiempo Real</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @keyframes pulse-glow {
             0%, 100% { opacity: 1; }
@@ -31,6 +32,16 @@ def dashboard_html() -> str:
         #stream-box::-webkit-scrollbar { width: 6px; }
         #stream-box::-webkit-scrollbar-track { background: #1e293b; }
         #stream-box::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .graph-link { stroke-opacity: 0.4; }
+        .graph-node { cursor: pointer; transition: r 0.2s, stroke-width 0.2s; }
+        .graph-label { font-size: 9px; fill: #94a3b8; pointer-events: none; }
+        .community-hull { fill-opacity: 0.06; stroke-opacity: 0.3; stroke-width: 1.5; }
+        .graph-tab { transition: background-color 0.2s, color 0.2s; }
+        .graph-tab.active-concepts { background-color: #065f46; color: #6ee7b7; }
+        .graph-tab.active-arch { background-color: #4c1d95; color: #c4b5fd; }
+        #graph-tooltip { position: absolute; display: none; background: #1e293b; border: 1px solid #475569;
+            border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #e2e8f0;
+            pointer-events: none; z-index: 50; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
@@ -77,6 +88,35 @@ def dashboard_html() -> str:
             &#x25A0; Detener
         </button>
         <span id="vivir-status" class="text-xs text-gray-500"></span>
+    </div>
+
+    <!-- ====== GRAFO INTERACTIVO (Fase 15) ====== -->
+    <div class="max-w-7xl mx-auto px-6 pb-4">
+        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+            <!-- Tab switcher -->
+            <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+                <div class="flex items-center space-x-2">
+                    <button onclick="switchGraphView('concepts')" id="tab-concepts"
+                        class="graph-tab text-xs font-semibold px-3 py-1.5 rounded active-concepts">
+                        Conceptos
+                    </button>
+                    <button onclick="switchGraphView('arch')" id="tab-arch"
+                        class="graph-tab text-xs font-semibold px-3 py-1.5 rounded text-gray-500 bg-gray-800">
+                        Arquitectura
+                    </button>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span id="graph-info" class="text-xs text-gray-500"></span>
+                    <button onclick="resetGraphZoom()" class="text-xs text-gray-500 hover:text-gray-300 bg-gray-800 px-2 py-1 rounded">Reset</button>
+                </div>
+            </div>
+            <!-- SVG -->
+            <svg id="graph-svg" width="100%" height="420" style="background:#0b0f19;display:block;"></svg>
+            <!-- Legend -->
+            <div id="graph-legend" class="flex flex-wrap items-center gap-3 px-4 py-2 border-t border-gray-800 text-xs text-gray-500"></div>
+        </div>
+        <!-- Tooltip -->
+        <div id="graph-tooltip"></div>
     </div>
 
     <!-- ====== GRID PRINCIPAL ====== -->
@@ -483,6 +523,7 @@ async function vivirCiclos(n) {
     pollOrganismo();
     pollConsciencia();
     pollDiario();
+    pollGraph();
 }
 
 async function vivirAuto() {
@@ -510,6 +551,7 @@ async function vivirAuto() {
     pollOrganismo();
     pollConsciencia();
     pollDiario();
+    pollGraph();
 }
 
 function detener() {
@@ -586,6 +628,312 @@ async function pollIntrospeccion() {
     } catch(_) {}
 }
 
+// ===== GRAFO INTERACTIVO (Fase 15) =====
+const CATEGORY_COLORS = {
+    tecnologias: '#FF6B6B', proyectos: '#4ECDC4', lucas_personal: '#45B7D1',
+    conceptos_ianae: '#96CEB4', herramientas: '#FFEAA7', emergentes: '#DDA0DD',
+    nlp_extraidos: '#F472B6', autoconocimiento: '#A78BFA', conocimiento_externo: '#2DD4BF',
+    default: '#94A3B8'
+};
+let currentView = 'concepts';
+let graphSimulation = null;
+let graphData = null;
+let patternsData = null;
+let archData = null;
+let graphZoom = null;
+
+function catColor(cat) { return CATEGORY_COLORS[cat] || CATEGORY_COLORS.default; }
+
+async function fetchGraphData() {
+    try {
+        const [nr, pr] = await Promise.all([
+            fetch('/api/v1/network'), fetch('/api/v1/insights/patrones')
+        ]);
+        if (nr.ok) graphData = await nr.json();
+        if (pr.ok) patternsData = await pr.json();
+    } catch(_) {}
+}
+
+async function fetchArchData() {
+    try {
+        const r = await fetch('/api/v1/introspeccion/dependencias');
+        if (r.ok) archData = await r.json();
+    } catch(_) {}
+}
+
+function renderConceptGraph() {
+    if (!graphData) return;
+    const svg = d3.select('#graph-svg');
+    svg.selectAll('*').remove();
+    const rect = document.getElementById('graph-svg').getBoundingClientRect();
+    const width = rect.width || 900;
+    const height = rect.height || 420;
+
+    const g = svg.append('g');
+
+    // Zoom
+    graphZoom = d3.zoom().scaleExtent([0.3, 4]).on('zoom', (e) => g.attr('transform', e.transform));
+    svg.call(graphZoom);
+
+    // Data
+    const nodes = (graphData.conceptos || []).map(c => ({
+        id: c.nombre, categoria: c.categoria, activaciones: c.activaciones || 0,
+        fuerza: c.fuerza || 1.0, ...c
+    }));
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const links = (graphData.relaciones || []).filter(r => nodeIds.has(r.source) && nodeIds.has(r.target))
+        .map(r => ({source: r.source, target: r.target, weight: r.weight || 0.5}));
+
+    // Puentes set
+    const puenteIds = new Set();
+    if (patternsData && patternsData.puentes) {
+        patternsData.puentes.forEach(p => { if (p.concepto) puenteIds.add(p.concepto); });
+    }
+
+    // Simulation
+    graphSimulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(d => Math.max(40, 120 - d.weight * 80)))
+        .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collide', d3.forceCollide().radius(d => nodeRadius(d) + 4));
+
+    // Community hulls
+    if (patternsData && patternsData.comunidades) {
+        const hullColors = ['#4ECDC4', '#FF6B6B', '#FFEAA7', '#DDA0DD', '#45B7D1', '#96CEB4', '#F472B6', '#A78BFA'];
+        const hullGroup = g.append('g').attr('class', 'hulls');
+
+        graphSimulation.on('tick.hulls', () => {
+            hullGroup.selectAll('path').remove();
+            patternsData.comunidades.forEach((comunidad, ci) => {
+                if (comunidad.length < 3) return;
+                const points = [];
+                comunidad.forEach(name => {
+                    const node = nodes.find(n => n.id === name);
+                    if (node && node.x != null) points.push([node.x, node.y]);
+                });
+                if (points.length < 3) return;
+                const hull = d3.polygonHull(points);
+                if (!hull) return;
+                hullGroup.append('path')
+                    .attr('d', 'M' + hull.map(p => p.join(',')).join('L') + 'Z')
+                    .attr('class', 'community-hull')
+                    .attr('fill', hullColors[ci % hullColors.length])
+                    .attr('stroke', hullColors[ci % hullColors.length]);
+            });
+        });
+    }
+
+    // Links
+    const link = g.append('g').selectAll('line').data(links).join('line')
+        .attr('class', 'graph-link')
+        .attr('stroke', '#475569')
+        .attr('stroke-width', d => Math.max(0.5, d.weight * 4))
+        .attr('stroke-opacity', d => 0.2 + d.weight * 0.5);
+
+    // Nodes
+    const node = g.append('g').selectAll('circle').data(nodes).join('circle')
+        .attr('class', 'graph-node')
+        .attr('r', d => nodeRadius(d))
+        .attr('fill', d => catColor(d.categoria))
+        .attr('stroke', d => puenteIds.has(d.id) ? '#ffffff' : 'none')
+        .attr('stroke-width', d => puenteIds.has(d.id) ? 2 : 0)
+        .call(d3.drag()
+            .on('start', (e, d) => { if (!e.active) graphSimulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end', (e, d) => { if (!e.active) graphSimulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+    // Labels
+    const label = g.append('g').selectAll('text').data(nodes.filter(n => n.activaciones > 0 || n.fuerza > 0.8))
+        .join('text')
+        .attr('class', 'graph-label')
+        .attr('text-anchor', 'middle')
+        .attr('dy', d => -nodeRadius(d) - 3)
+        .text(d => d.id.length > 14 ? d.id.slice(0, 12) + '..' : d.id);
+
+    // Tick
+    graphSimulation.on('tick', () => {
+        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('cx', d => d.x).attr('cy', d => d.y);
+        label.attr('x', d => d.x).attr('y', d => d.y);
+    });
+
+    // Tooltip + highlight
+    const tooltip = document.getElementById('graph-tooltip');
+    node.on('click', (e, d) => {
+        e.stopPropagation();
+        const neighbors = new Set();
+        links.forEach(l => {
+            const sid = typeof l.source === 'object' ? l.source.id : l.source;
+            const tid = typeof l.target === 'object' ? l.target.id : l.target;
+            if (sid === d.id) neighbors.add(tid);
+            if (tid === d.id) neighbors.add(sid);
+        });
+        neighbors.add(d.id);
+        node.attr('opacity', n => neighbors.has(n.id) ? 1 : 0.15);
+        link.attr('opacity', l => {
+            const sid = typeof l.source === 'object' ? l.source.id : l.source;
+            const tid = typeof l.target === 'object' ? l.target.id : l.target;
+            return (sid === d.id || tid === d.id) ? 1 : 0.05;
+        });
+        label.attr('opacity', n => neighbors.has(n.id) ? 1 : 0.1);
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.pageX + 12) + 'px';
+        tooltip.style.top = (e.pageY - 10) + 'px';
+        tooltip.innerHTML = `<div class="font-bold mb-1" style="color:${catColor(d.categoria)}">${escapeHtml(d.id)}</div>
+            <div>Categoria: ${d.categoria}</div>
+            <div>Activaciones: ${d.activaciones}</div>
+            <div>Fuerza: ${d.fuerza.toFixed(2)}</div>
+            ${puenteIds.has(d.id) ? '<div class="mt-1 text-amber-400">Puente entre comunidades</div>' : ''}`;
+    });
+    svg.on('click', () => {
+        node.attr('opacity', 1); link.attr('opacity', 1); label.attr('opacity', 1);
+        tooltip.style.display = 'none';
+    });
+
+    updateGraphInfo('concepts', nodes.length, links.length, patternsData ? (patternsData.comunidades || []).length : 0);
+    updateLegend('concepts');
+}
+
+function nodeRadius(d) {
+    return 5 + Math.min(d.activaciones || 0, 30) * 0.5 + (d.fuerza || 0) * 3;
+}
+
+function renderArchGraph() {
+    if (!archData) return;
+    const svg = d3.select('#graph-svg');
+    svg.selectAll('*').remove();
+    const rect = document.getElementById('graph-svg').getBoundingClientRect();
+    const width = rect.width || 900;
+    const height = rect.height || 420;
+
+    // Defs for arrowheads
+    svg.append('defs').append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 20).attr('refY', 0)
+        .attr('markerWidth', 6).attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#64748b');
+
+    const g = svg.append('g');
+    graphZoom = d3.zoom().scaleExtent([0.3, 4]).on('zoom', (e) => g.attr('transform', e.transform));
+    svg.call(graphZoom);
+
+    const nodes = (archData.nodos || []).map(n => ({...n}));
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const links = (archData.aristas || []).filter(a => nodeIds.has(a.source) && nodeIds.has(a.target))
+        .map(a => ({source: a.source, target: a.target}));
+
+    graphSimulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+        .force('charge', d3.forceManyBody().strength(-200).distanceMax(400))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collide', d3.forceCollide().radius(d => archRadius(d) + 8));
+
+    const link = g.append('g').selectAll('line').data(links).join('line')
+        .attr('class', 'graph-link')
+        .attr('stroke', '#475569')
+        .attr('stroke-width', 1.5)
+        .attr('marker-end', 'url(#arrowhead)');
+
+    const node = g.append('g').selectAll('circle').data(nodes).join('circle')
+        .attr('class', 'graph-node')
+        .attr('r', d => archRadius(d))
+        .attr('fill', d => d.es_core ? '#A78BFA' : '#64748B')
+        .attr('stroke', '#1e293b').attr('stroke-width', 1.5)
+        .call(d3.drag()
+            .on('start', (e, d) => { if (!e.active) graphSimulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end', (e, d) => { if (!e.active) graphSimulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+    const label = g.append('g').selectAll('text').data(nodes).join('text')
+        .attr('class', 'graph-label')
+        .attr('text-anchor', 'middle')
+        .attr('dy', d => -archRadius(d) - 4)
+        .text(d => d.id);
+
+    graphSimulation.on('tick', () => {
+        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('cx', d => d.x).attr('cy', d => d.y);
+        label.attr('x', d => d.x).attr('y', d => d.y);
+    });
+
+    const tooltip = document.getElementById('graph-tooltip');
+    node.on('click', (e, d) => {
+        e.stopPropagation();
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.pageX + 12) + 'px';
+        tooltip.style.top = (e.pageY - 10) + 'px';
+        tooltip.innerHTML = `<div class="font-bold mb-1" style="color:${d.es_core ? '#A78BFA' : '#94A3B8'}">${escapeHtml(d.id)}</div>
+            <div>Lineas: ${d.lineas}</div>
+            <div>Clases: ${d.clases} &middot; Funciones: ${d.funciones}</div>
+            ${d.docstring ? '<div class="mt-1 text-gray-400 italic">' + escapeHtml(d.docstring.slice(0, 120)) + '</div>' : ''}`;
+    });
+    svg.on('click', () => { tooltip.style.display = 'none'; });
+
+    updateGraphInfo('arch', nodes.length, links.length, 0);
+    updateLegend('arch');
+}
+
+function archRadius(d) { return 6 + Math.min((d.lineas || 0) / 100, 12); }
+
+function switchGraphView(view) {
+    currentView = view;
+    const tabC = document.getElementById('tab-concepts');
+    const tabA = document.getElementById('tab-arch');
+    if (view === 'concepts') {
+        tabC.className = 'graph-tab text-xs font-semibold px-3 py-1.5 rounded active-concepts';
+        tabA.className = 'graph-tab text-xs font-semibold px-3 py-1.5 rounded text-gray-500 bg-gray-800';
+        renderConceptGraph();
+    } else {
+        tabA.className = 'graph-tab text-xs font-semibold px-3 py-1.5 rounded active-arch';
+        tabC.className = 'graph-tab text-xs font-semibold px-3 py-1.5 rounded text-gray-500 bg-gray-800';
+        renderArchGraph();
+    }
+}
+
+function resetGraphZoom() {
+    const svg = d3.select('#graph-svg');
+    if (graphZoom) svg.transition().duration(400).call(graphZoom.transform, d3.zoomIdentity);
+}
+
+function updateGraphInfo(view, nodos, aristas, comunidades) {
+    const el = document.getElementById('graph-info');
+    if (view === 'concepts') {
+        el.textContent = nodos + ' nodos \\u00b7 ' + aristas + ' aristas' + (comunidades ? ' \\u00b7 ' + comunidades + ' comunidades' : '');
+    } else {
+        el.textContent = nodos + ' modulos \\u00b7 ' + aristas + ' dependencias';
+    }
+}
+
+function updateLegend(view) {
+    const el = document.getElementById('graph-legend');
+    if (view === 'concepts') {
+        const cats = Object.entries(CATEGORY_COLORS).filter(([k]) => k !== 'default');
+        el.innerHTML = cats.map(([k, c]) =>
+            '<span class="flex items-center gap-1"><span style="background:' + c + ';width:8px;height:8px;border-radius:50%;display:inline-block;"></span>' + k + '</span>'
+        ).join('') + '<span class="flex items-center gap-1 ml-2"><span style="width:8px;height:8px;border-radius:50%;display:inline-block;border:2px solid white;"></span>puente</span>';
+    } else {
+        el.innerHTML = '<span class="flex items-center gap-1"><span style="background:#A78BFA;width:8px;height:8px;border-radius:50%;display:inline-block;"></span>core</span>'
+            + '<span class="flex items-center gap-1"><span style="background:#64748B;width:8px;height:8px;border-radius:50%;display:inline-block;"></span>otro</span>'
+            + '<span class="flex items-center gap-1 ml-2">\\u2192 importa</span>';
+    }
+}
+
+async function pollGraph() {
+    if (currentView === 'concepts') {
+        await fetchGraphData();
+        renderConceptGraph();
+    } else {
+        await fetchArchData();
+        renderArchGraph();
+    }
+}
+
 // ===== INIT =====
 connectSSE();
 pollOrganismo();
@@ -593,11 +941,14 @@ pollConsciencia();
 pollDiario();
 pollConocimiento();
 pollIntrospeccion();
+// Init graph data
+fetchGraphData().then(() => fetchArchData().then(() => { if (currentView === 'concepts') renderConceptGraph(); else renderArchGraph(); }));
 setInterval(pollOrganismo, 3000);
 setInterval(pollConsciencia, 5000);
 setInterval(pollDiario, 10000);
 setInterval(pollConocimiento, 5000);
 setInterval(pollIntrospeccion, 10000);
+setInterval(pollGraph, 8000);
 </script>
 </body>
 </html>'''

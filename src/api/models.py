@@ -257,3 +257,10 @@ class IntrospeccionResponse(BaseModel):
     lineas: int
     quien_soy: str
     modulos_detalle: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class DependenciasResponse(BaseModel):
+    nodos: List[Dict[str, Any]]
+    aristas: List[Dict[str, Any]]
+    total_modulos: int
+    total_dependencias: int

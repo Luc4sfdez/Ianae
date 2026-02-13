@@ -32,7 +32,7 @@ from src.api.models import (
     ConscienciaResponse, OrganismoResponse, DiarioResponse,
     StreamStatsResponse,
     ConocimientoConfigRequest, ExploracionExternaRequest, RSSFeedRequest,
-    IntrospeccionResponse,
+    IntrospeccionResponse, DependenciasResponse,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -840,6 +840,58 @@ async def get_quien_soy():
     if mi is None:
         raise HTTPException(status_code=503, detail="Introspeccion no disponible")
     return {"quien_soy": mi.quien_soy()}
+
+
+@app.get("/api/v1/introspeccion/dependencias", response_model=DependenciasResponse,
+         tags=["introspeccion"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_dependencias():
+    """Grafo de dependencias entre modulos Python — datos D3-ready."""
+    org = get_organismo()
+    mi = getattr(org, "mapa_interno", None)
+    if mi is None:
+        raise HTTPException(status_code=503, detail="Introspeccion no disponible")
+
+    comp = mi.complejidad()
+    dependencias = comp.get("dependencias", {})
+    modulos_raw = mi.modulos()
+
+    # Build set of module names that appear in dependency graph
+    nombres_en_deps = set(dependencias.keys())
+
+    # Build node list with metadata
+    nodos = []
+    nodo_ids = set()
+    for m in modulos_raw:
+        nombre = m["nombre"]
+        if nombre not in nombres_en_deps:
+            continue
+        es_core = "core" in m.get("ruta", "").replace("\\", "/")
+        nodos.append({
+            "id": nombre,
+            "lineas": m.get("lineas", 0),
+            "clases": len(m.get("clases", [])),
+            "funciones": len(m.get("funciones", [])),
+            "es_core": es_core,
+            "docstring": m.get("docstring", "")[:150],
+        })
+        nodo_ids.add(nombre)
+
+    # Build edge list — only where both source and target exist
+    aristas = []
+    for source, targets in dependencias.items():
+        if source not in nodo_ids:
+            continue
+        for target in targets:
+            if target in nodo_ids:
+                aristas.append({"source": source, "target": target})
+
+    return DependenciasResponse(
+        nodos=nodos,
+        aristas=aristas,
+        total_modulos=len(nodos),
+        total_dependencias=len(aristas),
+    )
 
 
 # --- Entry point ---

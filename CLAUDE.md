@@ -4,10 +4,10 @@
 
 IANAE (Inteligencia Adaptativa No Algoritmica Emergente) es un organismo digital en Python. No es un chatbot ni una red neuronal — es un sistema basado en conceptos difusos, relaciones probabilisticas y comportamiento emergente que vive ciclos de vida autonomos: elige curiosidades, explora, reflexiona, suena, evoluciona y se auto-modifica.
 
-## Estado actual: 14 fases completadas
+## Estado actual: 15 fases completadas
 
-- **902 tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
-- **~19,800 lineas** de codigo en `src/`, **~9,700** en `tests/`
+- **908 tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
+- **~20,200 lineas** de codigo en `src/`, **~9,800** en `tests/`
 - **Branch**: `master` (es la principal, se pushea con `git push origin master`)
 - Docs detallados de cada fase en `docs/fases.md`
 
@@ -33,17 +33,17 @@ src/
 │   └── aprendizaje_refuerzo.py
 ├── api/
 │   ├── main.py                # FastAPI, 25+ endpoints, puerto 24000
-│   ├── dashboard.py           # dashboard_html() — HTML+JS+CSS inline, dashboard de vida
+│   ├── dashboard.py           # dashboard_html() — HTML+JS+CSS+D3.js inline, dashboard de vida + grafos interactivos
 │   ├── models.py              # Pydantic models
 │   └── auth.py                # API key (opcional si IANAE_API_KEYS esta seteado) + rate limit
 ├── nlp/                       # Pipeline NLP (extractor + pipeline)
 └── ui/app/                    # Dashboard Orchestra separado (puerto 25501, NO es el de vida)
 
-tests/                         # 876 tests (core/, api/, nlp/, sdk/, ui/)
+tests/                         # 908 tests (core/, api/, nlp/, sdk/, ui/)
 docker/                        # Dockerfile multi-stage
 orchestra/                     # Daemon + workers
 docs/
-├── fases.md                   # Historial detallado de las 13 fases
+├── fases.md                   # Historial detallado de las 15 fases
 └── estado_actual.md           # Estado febrero 2026
 ```
 
@@ -66,6 +66,7 @@ docs/
 | POST | `/api/v1/conocimiento/rss` | Si* | Agregar feed RSS |
 | GET | `/api/v1/introspeccion` | Si* | Mapa interno: modulos, clases, complejidad |
 | GET | `/api/v1/introspeccion/quien-soy` | Si* | IANAE describe su estructura |
+| GET | `/api/v1/introspeccion/dependencias` | Si* | Grafo de dependencias entre modulos (D3-ready) |
 
 *Auth solo si `IANAE_API_KEYS` env var esta configurado. Sin ella, todo es abierto.
 
@@ -85,7 +86,7 @@ python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encod
 
 - `get_organismo()` en `main.py` hace lazy init: `crear_universo_lucas()` -> `IANAE.desde_componentes()`
 - `ciclo_completo()` ejecuta: percepcion -> feedback suenos -> ciclo consciente -> sueno -> evolucion (cada 10) -> streaming
-- Tests: `python -m pytest tests/ -q` desde `E:\ianae-final` (902 tests, 1 pre-existente falla)
+- Tests: `python -m pytest tests/ -q` desde `E:\ianae-final` (908 tests, 1 pre-existente falla)
 - El dashboard de `src/ui/app/` es para Orchestra (servicio separado) — NO es el dashboard de vida
 - El dashboard de vida es `src/api/dashboard.py` servido en `GET /` del mismo FastAPI
 
@@ -105,10 +106,11 @@ python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encod
 12. Dashboard en vivo con modo auto
 13. Conocimiento externo (Wikipedia, RSS, Web, Archivos + filtro digestion)
 14. Introspeccion (AST self-analysis, MapaInterno, autoconocimiento estructural)
+15. Grafo interactivo (D3.js force-directed, conceptos + arquitectura, zoom/pan/drag, tooltips)
 
 ## Reglas importantes
 
-- No tocar `src/core/` a menos que se pida — es el nucleo estable con 876 tests
+- No tocar `src/core/` a menos que se pida — es el nucleo estable con 908 tests
 - Branch `master` pushea a `origin/master` (no a main)
 - Los archivos en `data/` y `tmp_*` son runtime, no van al repo
 - Siempre correr tests despues de cambios: `python -m pytest tests/ -q`
