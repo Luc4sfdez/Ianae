@@ -68,6 +68,10 @@ def dashboard_html() -> str:
             class="bg-emerald-800 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded font-medium transition-colors">
             &#x25B6;&#x25B6; Vivir 5 ciclos
         </button>
+        <button onclick="vivirAuto()" id="btn-auto"
+            class="bg-amber-700 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded font-medium transition-colors">
+            &#x221E; Modo Auto
+        </button>
         <button onclick="detener()" id="btn-detener"
             class="bg-red-800 hover:bg-red-700 text-white text-sm px-4 py-2 rounded font-medium transition-colors hidden">
             &#x25A0; Detener
@@ -386,11 +390,22 @@ async function pollDiario() {
 }
 
 // ===== VIVIR =====
+let autoMode = false;
+let ciclosTotales = 0;
+
+function setBotonesVivir(running) {
+    document.getElementById('btn-vivir1').disabled = running;
+    document.getElementById('btn-vivir5').disabled = running;
+    document.getElementById('btn-auto').disabled = running;
+    document.getElementById('btn-vivir1').classList.toggle('opacity-50', running);
+    document.getElementById('btn-vivir5').classList.toggle('opacity-50', running);
+    document.getElementById('btn-auto').classList.toggle('opacity-50', running);
+    document.getElementById('btn-detener').classList.toggle('hidden', !running);
+}
+
 async function vivirCiclos(n) {
     abortCtrl = new AbortController();
-    document.getElementById('btn-vivir1').disabled = true;
-    document.getElementById('btn-vivir5').disabled = true;
-    document.getElementById('btn-detener').classList.remove('hidden');
+    setBotonesVivir(true);
 
     for (let i = 0; i < n; i++) {
         if (abortCtrl.signal.aborted) break;
@@ -400,21 +415,45 @@ async function vivirCiclos(n) {
         } catch(e) {
             if (e.name === 'AbortError') break;
         }
-        // small delay between cycles
         if (i < n - 1) await new Promise(r => setTimeout(r, 300));
     }
     document.getElementById('vivir-status').textContent = '';
-    document.getElementById('btn-vivir1').disabled = false;
-    document.getElementById('btn-vivir5').disabled = false;
-    document.getElementById('btn-detener').classList.add('hidden');
+    setBotonesVivir(false);
     abortCtrl = null;
-    // immediate refresh
+    pollOrganismo();
+    pollConsciencia();
+    pollDiario();
+}
+
+async function vivirAuto() {
+    autoMode = true;
+    abortCtrl = new AbortController();
+    ciclosTotales = 0;
+    setBotonesVivir(true);
+
+    while (autoMode && !abortCtrl.signal.aborted) {
+        ciclosTotales++;
+        document.getElementById('vivir-status').textContent = `AUTO: ciclo #${ciclosTotales} corriendo...`;
+        try {
+            await fetch('/api/v1/vida/ciclo', {method: 'POST', signal: abortCtrl.signal});
+        } catch(e) {
+            if (e.name === 'AbortError') break;
+        }
+        document.getElementById('vivir-status').textContent = `AUTO: ${ciclosTotales} ciclos completados`;
+        // pausa entre ciclos para dejar respirar al server y ver los eventos
+        await new Promise(r => setTimeout(r, 500));
+    }
+    document.getElementById('vivir-status').textContent = `AUTO detenido tras ${ciclosTotales} ciclos`;
+    autoMode = false;
+    setBotonesVivir(false);
+    abortCtrl = null;
     pollOrganismo();
     pollConsciencia();
     pollDiario();
 }
 
 function detener() {
+    autoMode = false;
     if (abortCtrl) abortCtrl.abort();
 }
 
