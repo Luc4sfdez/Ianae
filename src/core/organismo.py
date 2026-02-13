@@ -1,10 +1,11 @@
 """
-Organismo IANAE — Fase 7: Nacimiento.
+Organismo IANAE — Fase 7+8: Nacimiento y Evolucion.
 
 Clase unificada que ensambla todos los subsistemas en un organismo vivo.
 Un solo despertar() arranca todo. Los suenos prometedores retroalimentan
 la curiosidad. Las conversaciones persisten y alimentan el aprendizaje.
-El circuito esta cerrado: IANAE nace completa.
+El motor de evolucion auto-ajusta parametros, persiste estado entre
+reinicios, y percibe archivos nuevos del entorno.
 """
 import json
 import logging
@@ -25,6 +26,8 @@ class IANAE:
         objetivos_path: str = "data/objetivos_ianae.json",
         conversaciones_path: str = "data/conversaciones_ianae.jsonl",
         snapshot_dir: str = "data/snapshots",
+        estado_path: str = "data/estado_ianae.json",
+        percepcion_dir: Optional[str] = None,
         intervalo_base: float = 2.0,
         consolidar_cada: int = 20,
     ):
@@ -35,6 +38,7 @@ class IANAE:
         from src.core.consciencia import Consciencia
         from src.core.suenos import MotorSuenos
         from src.core.dialogo import DialogoIANAE
+        from src.core.evolucion import MotorEvolucion
 
         # 1. Nucleo
         self.sistema = crear_universo_lucas()
@@ -69,6 +73,13 @@ class IANAE:
         # 7. Dialogo
         self.dialogo = DialogoIANAE(self.consciencia)
 
+        # 8. Evolucion
+        self.evolucion = MotorEvolucion(
+            self,
+            estado_path=estado_path,
+            percepcion_dir=percepcion_dir,
+        )
+
         # Persistencia de conversaciones
         self._conversaciones_path = conversaciones_path
         self._nacido = time.time()
@@ -85,6 +96,8 @@ class IANAE:
         objetivos_path: str = "data/objetivos_ianae.json",
         conversaciones_path: str = "data/conversaciones_ianae.jsonl",
         snapshot_dir: str = "data/snapshots",
+        estado_path: str = "data/estado_ianae.json",
+        percepcion_dir: Optional[str] = None,
         intervalo_base: float = 2.0,
         consolidar_cada: int = 20,
     ) -> "IANAE":
@@ -95,6 +108,7 @@ class IANAE:
         from src.core.consciencia import Consciencia
         from src.core.suenos import MotorSuenos
         from src.core.dialogo import DialogoIANAE
+        from src.core.evolucion import MotorEvolucion
 
         inst = object.__new__(cls)
         inst.sistema = sistema
@@ -110,6 +124,9 @@ class IANAE:
         inst.consciencia = Consciencia(inst.vida, objetivos_path=objetivos_path)
         inst.suenos = MotorSuenos(sistema, inst.pensamiento)
         inst.dialogo = DialogoIANAE(inst.consciencia)
+        inst.evolucion = MotorEvolucion(
+            inst, estado_path=estado_path, percepcion_dir=percepcion_dir,
+        )
         inst._conversaciones_path = conversaciones_path
         inst._nacido = time.time()
         return inst
@@ -121,6 +138,13 @@ class IANAE:
     def despertar(self, max_ciclos: Optional[int] = None) -> List[Dict]:
         """Arranca el organismo completo. max_ciclos=None → infinito."""
         logger.info("IANAE despierta.")
+
+        # Cargar estado previo si existe
+        estado_previo = self.evolucion.cargar_estado()
+        if estado_previo:
+            logger.info("Estado previo restaurado (gen=%d).",
+                         self.evolucion._generacion)
+
         resultados: List[Dict] = []
 
         from src.core.recovery import RecoveryManager
@@ -159,19 +183,30 @@ class IANAE:
         """Un ciclo con todas las capas integradas."""
         ts = time.time()
 
-        # 1. Inyectar suenos prometedores como curiosidad
+        # 1. Percibir entorno (archivos nuevos)
+        percepciones = self.evolucion.percibir()
+
+        # 2. Inyectar suenos prometedores como curiosidad
         self._retroalimentar_suenos()
 
-        # 2. Ciclo consciente (ya cierra circuito internamente)
+        # 3. Ciclo consciente (ya cierra circuito internamente)
         resultado_consciente = self.consciencia.ciclo_consciente()
 
-        # 3. Sonar con lo descubierto (imaginar extensiones)
+        # 4. Sonar con lo descubierto (imaginar extensiones)
         sueno = self._sonar_desde_descubrimiento(resultado_consciente)
+
+        # 5. Evolucionar cada 10 ciclos
+        evolucion_resultado = None
+        if self.vida._ciclo_actual % 10 == 0 and self.vida._ciclo_actual > 0:
+            evolucion_resultado = self.evolucion.evolucionar()
+            self.evolucion.guardar_estado()
 
         return {
             "timestamp": ts,
             **resultado_consciente,
             "sueno": sueno,
+            "percepciones": percepciones,
+            "evolucion": evolucion_resultado,
         }
 
     # ------------------------------------------------------------------
@@ -298,6 +333,7 @@ class IANAE:
             "conceptos": len(self.sistema.conceptos),
             "relaciones": self.sistema.grafo.number_of_edges(),
             "ciclo_actual": self.vida._ciclo_actual,
+            "generacion": self.evolucion._generacion,
             "pulso": self.consciencia.pulso(),
             "superficie": self.consciencia.superficie(),
             "corrientes": self.consciencia.corrientes(),
@@ -307,6 +343,7 @@ class IANAE:
             ]),
             "suenos_prometedores": len(self.suenos.suenos_prometedores()),
             "conversaciones": len(self.dialogo.historial()),
+            "archivos_percibidos": len(self.evolucion.archivos_percibidos()),
         }
 
     def leer_conversaciones(self, ultimas: int = 10) -> List[Dict]:

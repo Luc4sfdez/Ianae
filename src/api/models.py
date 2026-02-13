@@ -204,12 +204,14 @@ class OrganismoResponse(BaseModel):
     conceptos: int
     relaciones: int
     ciclo_actual: int
+    generacion: int = 0
     pulso: Dict[str, Any]
     superficie: float
     corrientes: Dict[str, Any]
     objetivos_pendientes: int
     suenos_prometedores: int
     conversaciones: int
+    archivos_percibidos: int = 0
 
 
 class DiarioResponse(BaseModel):
