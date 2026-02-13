@@ -4,10 +4,10 @@
 
 IANAE (Inteligencia Adaptativa No Algoritmica Emergente) es un organismo digital en Python. No es un chatbot ni una red neuronal — es un sistema basado en conceptos difusos, relaciones probabilisticas y comportamiento emergente que vive ciclos de vida autonomos: elige curiosidades, explora, reflexiona, suena, evoluciona y se auto-modifica.
 
-## Estado actual: 15 fases completadas
+## Estado actual: 16 fases completadas
 
-- **908 tests** (1 fallo pre-existente en `test_evolucion.py::test_intervalo_respeta_limites`, no critico)
-- **~20,200 lineas** de codigo en `src/`, **~9,800** en `tests/`
+- **944 tests** (0 fallos)
+- **~20,700 lineas** de codigo en `src/`, **~10,200** en `tests/`
 - **Branch**: `master` (es la principal, se pushea con `git push origin master`)
 - Docs detallados de cada fase en `docs/fases.md`
 
@@ -29,6 +29,8 @@ src/
 │   ├── persistencia.py        # SQLite para vectores numpy
 │   ├── conocimiento_externo.py # Fase 13: fuentes externas (Wiki, RSS, Web, Archivos) + filtro digestion
 │   ├── introspeccion.py       # Fase 14: AST self-analysis, MapaInterno, autoconocimiento
+│   ├── emociones.py           # Fase 16: 8 estados emocionales con intensidad/valencia/efectos
+│   ├── comunicacion.py        # Fase 16: canal file-based entre instancias (outbox/inbox JSON)
 │   ├── insights.py            # Comunidades, puentes, analisis predictivo
 │   └── aprendizaje_refuerzo.py
 ├── api/
@@ -67,6 +69,9 @@ docs/
 | GET | `/api/v1/introspeccion` | Si* | Mapa interno: modulos, clases, complejidad |
 | GET | `/api/v1/introspeccion/quien-soy` | Si* | IANAE describe su estructura |
 | GET | `/api/v1/introspeccion/dependencias` | Si* | Grafo de dependencias entre modulos (D3-ready) |
+| GET | `/api/v1/comunicacion` | Si* | Estado del canal de comunicacion |
+| POST | `/api/v1/comunicacion/compartir` | Si* | Compartir concepto via outbox |
+| POST | `/api/v1/comunicacion/absorber` | Si* | Absorber mensajes del inbox |
 
 *Auth solo si `IANAE_API_KEYS` env var esta configurado. Sin ella, todo es abierto.
 
@@ -86,7 +91,7 @@ python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encod
 
 - `get_organismo()` en `main.py` hace lazy init: `crear_universo_lucas()` -> `IANAE.desde_componentes()`
 - `ciclo_completo()` ejecuta: percepcion -> feedback suenos -> ciclo consciente -> sueno -> evolucion (cada 10) -> streaming
-- Tests: `python -m pytest tests/ -q` desde `E:\ianae-final` (908 tests, 1 pre-existente falla)
+- Tests: `python -m pytest tests/ -q` desde `E:\ianae-final` (944 tests, 0 fallos)
 - El dashboard de `src/ui/app/` es para Orchestra (servicio separado) — NO es el dashboard de vida
 - El dashboard de vida es `src/api/dashboard.py` servido en `GET /` del mismo FastAPI
 
@@ -107,6 +112,7 @@ python -B -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encod
 13. Conocimiento externo (Wikipedia, RSS, Web, Archivos + filtro digestion)
 14. Introspeccion (AST self-analysis, MapaInterno, autoconocimiento estructural)
 15. Grafo interactivo (D3.js force-directed, conceptos + arquitectura, zoom/pan/drag, tooltips)
+16. IANAE siente, recuerda, habla (8 emociones, persistencia completa, comunicacion entre instancias, fix dashboard)
 
 ## Reglas importantes
 

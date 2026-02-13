@@ -165,3 +165,26 @@ class MemoriaViva:
             "total_memorias": ep["total"] + sem["total"],
             "total_activas": ep["activas"] + sem["activas"],
         }
+
+    # ------------------------------------------------------------------
+    # Exportar / Importar — persistencia completa
+    # ------------------------------------------------------------------
+
+    def exportar(self) -> Dict[str, Any]:
+        """Exporta ambas capas para persistencia."""
+        raw_ep = self._episodica.exportar()
+        raw_sem = self._semantica.exportar()
+        # Convertir tuplas a listas para JSON
+        ep = {k: [v[0], v[1], v[2]] for k, v in raw_ep.items()}
+        sem = {k: [v[0], v[1], v[2]] for k, v in raw_sem.items()}
+        return {"episodica": ep, "semantica": sem}
+
+    def importar(self, datos: Dict[str, Any]) -> None:
+        """Restaura ambas capas desde datos exportados."""
+        raw_ep = datos.get("episodica", {})
+        raw_sem = datos.get("semantica", {})
+        # Reconstruir tuplas
+        ep = {k: (v[0], v[1], v[2]) for k, v in raw_ep.items()}
+        sem = {k: (v[0], v[1], v[2]) for k, v in raw_sem.items()}
+        self._episodica.importar(ep)
+        self._semantica.importar(sem)

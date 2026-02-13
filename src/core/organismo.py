@@ -44,6 +44,7 @@ class IANAE:
         from src.core.pulso_streaming import PulsoStreaming
         from src.core.conocimiento_externo import ConocimientoExterno
         from src.core.introspeccion import MapaInterno
+        from src.core.comunicacion import CanalComunicacion
 
         # 1. Nucleo
         self.sistema = crear_universo_lucas()
@@ -105,6 +106,9 @@ class IANAE:
             percepcion_dir=percepcion_dir,
         )
 
+        # 16. Comunicacion entre instancias
+        self.comunicacion = CanalComunicacion()
+
         # Persistencia de conversaciones
         self._conversaciones_path = conversaciones_path
         self._nacido = time.time()
@@ -139,6 +143,7 @@ class IANAE:
         from src.core.pulso_streaming import PulsoStreaming
         from src.core.conocimiento_externo import ConocimientoExterno
         from src.core.introspeccion import MapaInterno
+        from src.core.comunicacion import CanalComunicacion
 
         inst = object.__new__(cls)
         inst.sistema = sistema
@@ -173,6 +178,7 @@ class IANAE:
         inst.evolucion = MotorEvolucion(
             inst, estado_path=estado_path, percepcion_dir=percepcion_dir,
         )
+        inst.comunicacion = CanalComunicacion()
         inst._conversaciones_path = conversaciones_path
         inst._nacido = time.time()
         return inst
@@ -255,6 +261,13 @@ class IANAE:
         if self.vida._ciclo_actual % 10 == 0 and self.vida._ciclo_actual > 0:
             evolucion_resultado = self.evolucion.evolucionar()
             self.evolucion.guardar_estado()
+
+        # 5b. Auto-save cada 20 ciclos
+        if self.vida._ciclo_actual % 20 == 0 and self.vida._ciclo_actual > 0:
+            try:
+                self.guardar_completo()
+            except Exception:
+                pass
 
         if evolucion_resultado and self.pulso_streaming:
             try:
@@ -385,6 +398,65 @@ class IANAE:
             f.write(json.dumps(entrada, ensure_ascii=False) + "\n")
 
     # ------------------------------------------------------------------
+    # Persistencia completa (Fase 16)
+    # ------------------------------------------------------------------
+
+    def guardar_completo(self, directorio: str = "data") -> Dict[str, str]:
+        """Guarda estado completo: grafo, evolucion, memoria."""
+        os.makedirs(directorio, exist_ok=True)
+        archivos: Dict[str, str] = {}
+
+        # 1. Grafo completo
+        ruta_grafo = os.path.join(directorio, "ianae_grafo.json")
+        self.sistema.guardar(ruta_grafo)
+        archivos["grafo"] = ruta_grafo
+
+        # 2. Evolucion
+        ruta_evol = self.evolucion.guardar_estado()
+        archivos["evolucion"] = ruta_evol
+
+        # 3. Memoria viva
+        ruta_mem = os.path.join(directorio, "ianae_memoria.json")
+        datos_mem = self.memoria_viva.exportar()
+        with open(ruta_mem, "w", encoding="utf-8") as f:
+            json.dump(datos_mem, f, ensure_ascii=False, default=str)
+        archivos["memoria"] = ruta_mem
+
+        logger.info("Estado completo guardado en %s (%d archivos)", directorio, len(archivos))
+        return archivos
+
+    @classmethod
+    def restaurar(cls, directorio: str = "data", **kwargs) -> Optional["IANAE"]:
+        """Restaura un organismo desde archivos guardados."""
+        from src.core.nucleo import ConceptosLucas
+
+        ruta_grafo = os.path.join(directorio, "ianae_grafo.json")
+        if not os.path.exists(ruta_grafo):
+            return None
+
+        sistema = ConceptosLucas.cargar(ruta_grafo)
+        if sistema is None:
+            return None
+
+        inst = cls.desde_componentes(sistema, **kwargs)
+
+        # Restaurar evolucion
+        inst.evolucion.cargar_estado()
+
+        # Restaurar memoria
+        ruta_mem = os.path.join(directorio, "ianae_memoria.json")
+        if os.path.exists(ruta_mem):
+            try:
+                with open(ruta_mem, "r", encoding="utf-8") as f:
+                    datos_mem = json.load(f)
+                inst.memoria_viva.importar(datos_mem)
+            except Exception as e:
+                logger.warning("No se pudo restaurar memoria: %s", e)
+
+        logger.info("Organismo restaurado desde %s", directorio)
+        return inst
+
+    # ------------------------------------------------------------------
     # Introspeccion (Fase 14)
     # ------------------------------------------------------------------
 
@@ -420,6 +492,8 @@ class IANAE:
             "memoria_viva": self.memoria_viva.estadisticas() if self.memoria_viva else None,
             "conocimiento_externo": self.conocimiento_externo.estado() if self.conocimiento_externo else None,
             "introspeccion": self.mapa_interno.complejidad() if self.mapa_interno else None,
+            "emocion": self.consciencia.emocion(),
+            "comunicacion": self.comunicacion.estado() if self.comunicacion else None,
         }
 
     def leer_conversaciones(self, ultimas: int = 10) -> List[Dict]:

@@ -227,6 +227,18 @@ class TestPulso:
         assert p["racha"] >= 1
 
 
+class TestPulsoCoherenciaCuriosidad:
+    def test_pulso_tiene_coherencia_y_curiosidad(self, consciencia):
+        p = consciencia.pulso()
+        assert "coherencia" in p
+        assert "curiosidad" in p
+
+    def test_pulso_coherencia_curiosidad_entre_0_y_1(self, consciencia_con_diario):
+        p = consciencia_con_diario.pulso()
+        assert 0.0 <= p["coherencia"] <= 1.0
+        assert 0.0 <= p["curiosidad"] <= 1.0
+
+
 class TestCapilaridad:
     def test_retorna_lista(self, consciencia):
         cap = consciencia.capilaridad()

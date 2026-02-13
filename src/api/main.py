@@ -33,6 +33,7 @@ from src.api.models import (
     StreamStatsResponse,
     ConocimientoConfigRequest, ExploracionExternaRequest, RSSFeedRequest,
     IntrospeccionResponse, DependenciasResponse,
+    ComunicacionRequest,
 )
 from src.api.auth import validate_api_key, check_rate_limit
 from src.core.nucleo import ConceptosLucas, crear_universo_lucas
@@ -589,11 +590,16 @@ _organismo = None
 
 
 def get_organismo():
-    """Retorna la instancia del organismo IANAE (lazy init desde sistema existente)."""
-    global _organismo
+    """Retorna la instancia del organismo IANAE (lazy init, intenta restaurar estado previo)."""
+    global _organismo, _sistema
     if _organismo is None:
         from src.core.organismo import IANAE
-        _organismo = IANAE.desde_componentes(get_sistema())
+        restored = IANAE.restaurar("data")
+        if restored is not None:
+            _organismo = restored
+            _sistema = restored.sistema
+        else:
+            _organismo = IANAE.desde_componentes(get_sistema())
     return _organismo
 
 
@@ -658,6 +664,7 @@ async def get_consciencia():
         sesgos=c.detectar_sesgos(),
         crecimiento=c.medir_crecimiento(),
         narrativa=c.narrar_estado(),
+        emocion=c.emocion(),
     )
 
 
@@ -892,6 +899,59 @@ async def get_dependencias():
         total_modulos=len(nodos),
         total_dependencias=len(aristas),
     )
+
+
+# --- Comunicacion (Fase 16) ---
+
+
+@app.get("/api/v1/comunicacion", tags=["comunicacion"],
+         dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def get_comunicacion():
+    """Estado del canal de comunicacion entre instancias."""
+    org = get_organismo()
+    comm = getattr(org, "comunicacion", None)
+    if comm is None:
+        return {"habilitado": False}
+    return comm.estado()
+
+
+@app.post("/api/v1/comunicacion/compartir", tags=["comunicacion"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def compartir_concepto(body: ComunicacionRequest):
+    """Comparte un concepto con otras instancias via outbox."""
+    org = get_organismo()
+    comm = getattr(org, "comunicacion", None)
+    if comm is None:
+        raise HTTPException(status_code=503, detail="Comunicacion no disponible")
+    if body.concepto not in org.sistema.conceptos:
+        raise HTTPException(status_code=404, detail=f"Concepto '{body.concepto}' no encontrado")
+    msg_id = comm.compartir_concepto(org.sistema, body.concepto)
+    return {"status": "ok", "mensaje_id": msg_id}
+
+
+@app.post("/api/v1/comunicacion/absorber", tags=["comunicacion"],
+          dependencies=[Depends(validate_api_key), Depends(check_rate_limit)])
+async def absorber_mensajes():
+    """Absorbe mensajes del inbox y agrega conceptos al grafo."""
+    org = get_organismo()
+    comm = getattr(org, "comunicacion", None)
+    if comm is None:
+        raise HTTPException(status_code=503, detail="Comunicacion no disponible")
+    absorbidos = comm.absorber_mensajes(org.sistema)
+    return {"status": "ok", "absorbidos": absorbidos, "total": len(absorbidos)}
+
+
+# --- Lifecycle ---
+
+
+@app.on_event("shutdown")
+async def shutdown_guardar():
+    """Guarda estado completo al cerrar el servidor."""
+    if _organismo is not None:
+        try:
+            _organismo.guardar_completo()
+        except Exception:
+            pass
 
 
 # --- Entry point ---

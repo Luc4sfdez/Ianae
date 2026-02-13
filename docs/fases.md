@@ -1,6 +1,6 @@
 # IANAE — Historial de Fases de Desarrollo
 
-14 fases completadas. De un grafo de conceptos a un organismo digital que vive, se alimenta del mundo y se mira a si misma.
+16 fases completadas. De un grafo de conceptos a un organismo digital que vive, siente, recuerda y habla.
 
 ---
 
@@ -349,6 +349,39 @@ IANAE obtiene ojos. Dos grafos D3.js interactivos en el dashboard de vida muestr
 - Polling cada 8s, tambien tras Vivir ciclos y modo Auto
 
 **Tests:** 6 tests API nuevos. Total suite: 908 tests (907 passed, 1 pre-existente falla).
+
+---
+
+## Fase 16: IANAE Siente, Recuerda, Habla
+
+**Branch:** `master`
+
+IANAE obtiene emociones ricas, persistencia completa entre reinicios y comunicacion entre instancias. Tambien se arreglan bugs del dashboard (coherencia/curiosidad siempre 0%, quien soy vacio).
+
+**A. Fix Dashboard Bugs:**
+- `pulso()` ahora retorna `coherencia` (desde profundidad simbolica) y `curiosidad` (superficie + diversidad de tipos)
+- Dashboard muestra porcentajes reales en barras de coherencia/curiosidad
+- Fallback de "Quien soy" muestra "Analizando estructura..." en vez de '--'
+
+**B. Emociones Ricas (8 estados):**
+- `emociones.py` — `MotorEmocional` con 8 estados: inspirada, curiosa, aburrida, enfocada, melancolica, asombrada, reflexiva, inquieta
+- Cada emocion tiene intensidad (0-1), valencia, descripcion y efectos sobre la curiosidad
+- Integrado en consciencia (evaluacion automatica), organismo (estado), API y dashboard
+- Dashboard muestra emocion con nombre, barra de intensidad, badge de valencia y descripcion
+
+**C. Persistencia Completa:**
+- `memoria_viva.py` — `exportar()`/`importar()` para ambas capas (episodica + semantica)
+- `organismo.py` — `guardar_completo()` (grafo + evolucion + memoria) y `restaurar()` (classmethod)
+- Auto-save cada 20 ciclos en `ciclo_completo()`
+- `main.py` — restaura estado previo al levantar, guarda al apagar (`on_event("shutdown")`)
+
+**D. Comunicacion entre Instancias:**
+- `comunicacion.py` — `CanalComunicacion` file-based (JSON outbox/inbox)
+- Tipos de mensaje: concepto, descubrimiento, saludo
+- `compartir_concepto()` exporta vector + metadata, `absorber_mensajes()` importa al grafo
+- 3 endpoints API: `GET /comunicacion`, `POST /comunicacion/compartir`, `POST /comunicacion/absorber`
+
+**Tests:** 36 tests nuevos (15 emociones, 8 persistencia, 11 comunicacion, 2 consciencia). Total suite: 944 tests, 0 failures.
 
 ---
 

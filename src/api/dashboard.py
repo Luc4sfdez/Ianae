@@ -199,6 +199,19 @@ def dashboard_html() -> str:
                         </div>
                     </div>
                     <div class="pt-2 border-t border-gray-800">
+                        <div class="text-xs text-gray-500 mb-1">Emocion</div>
+                        <div id="con-emocion" class="flex items-center space-x-2">
+                            <span id="con-emocion-nombre" class="text-sm font-bold text-rose-400">--</span>
+                            <span id="con-emocion-valencia" class="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">--</span>
+                        </div>
+                        <div class="mt-1">
+                            <div class="w-full bg-gray-800 rounded-full h-1.5">
+                                <div id="con-emocion-bar" class="bg-rose-500 h-1.5 rounded-full bar-fill" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div id="con-emocion-desc" class="text-xs text-gray-500 mt-1 italic">--</div>
+                    </div>
+                    <div class="pt-2 border-t border-gray-800">
                         <div class="text-xs text-gray-500 mb-1">Corrientes</div>
                         <div id="con-corrientes" class="text-xs text-gray-400">--</div>
                     </div>
@@ -436,6 +449,19 @@ async function pollConsciencia() {
         setBar('con-coherencia', coherencia);
         setBar('con-curiosidad', curiosidad);
 
+        // emocion
+        const emo = d.emocion || {};
+        if (emo.emocion) {
+            document.getElementById('con-emocion-nombre').textContent = emo.emocion;
+            const vBadge = document.getElementById('con-emocion-valencia');
+            const val = emo.valencia || 0;
+            vBadge.textContent = val > 0 ? '+' + val.toFixed(1) : val.toFixed(1);
+            vBadge.className = 'text-xs px-1.5 py-0.5 rounded ' + (val > 0 ? 'bg-emerald-900/50 text-emerald-300' : val < 0 ? 'bg-red-900/50 text-red-300' : 'bg-gray-800 text-gray-400');
+            const intPct = Math.max(0, Math.min(100, (emo.intensidad || 0) * 100));
+            document.getElementById('con-emocion-bar').style.width = intPct + '%';
+            document.getElementById('con-emocion-desc').textContent = emo.descripcion || '';
+        }
+
         // corrientes
         const corr = d.corrientes || {};
         const corrEl = document.getElementById('con-corrientes');
@@ -635,7 +661,7 @@ async function pollIntrospeccion() {
         document.getElementById('intro-clases').textContent = d.clases || 0;
         document.getElementById('intro-metodos').textContent = d.metodos || 0;
         document.getElementById('intro-lineas').textContent = d.lineas ? d.lineas.toLocaleString() : '--';
-        document.getElementById('intro-quien').textContent = d.quien_soy || '--';
+        document.getElementById('intro-quien').textContent = (d.quien_soy && d.quien_soy.trim()) || 'Analizando estructura...';
     } catch(_) {}
 }
 

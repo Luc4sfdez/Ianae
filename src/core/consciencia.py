@@ -41,6 +41,9 @@ class Consciencia:
         self._objetivos: List[Dict] = []
         self._cargar_objetivos()
 
+        from src.core.emociones import MotorEmocional
+        self._motor_emocional = MotorEmocional()
+
     # ==================================================================
     # META-ANALISIS — lee su propio diario
     # ==================================================================
@@ -370,7 +373,7 @@ class Consciencia:
         """Estado emocional/energetico basado en veredictos recientes."""
         entradas = self.vida.leer_diario(ultimos=10)
         if not entradas:
-            return {"estado": "curiosa", "energia": 0.5, "racha": 0}
+            return {"estado": "curiosa", "energia": 0.5, "racha": 0, "coherencia": 0.0, "curiosidad": 0.5}
 
         veredictos = [e.get("reflexion", {}).get("veredicto", "rutinario") for e in entradas]
         scores = [e.get("reflexion", {}).get("score", 0) for e in entradas]
@@ -400,10 +403,23 @@ class Consciencia:
         else:
             estado = "curiosa"
 
+        # Coherencia: desde profundidad simbolica
+        prof = self.profundidad_simbolica()
+        coherencia = prof["coherencia_media"]
+
+        # Curiosidad: combinacion de superficie y diversidad de tipos
+        sup = self.superficie()
+        patrones = self.analizar_patrones_propios()
+        n_tipos = len(patrones.get("tipos_frecuencia", {}))
+        diversidad = min(1.0, n_tipos / 5.0) if n_tipos > 0 else 0.3
+        curiosidad = round(min(1.0, (sup + diversidad) / 2), 4)
+
         return {
             "estado": estado,
             "energia": round(energia, 4),
             "racha": racha,
+            "coherencia": coherencia,
+            "curiosidad": curiosidad,
         }
 
     def capilaridad(self) -> List[Dict[str, Any]]:
@@ -498,6 +514,20 @@ class Consciencia:
             return {"activa": False}
 
     # ==================================================================
+    # EMOCION — estado emocional rico (Fase 16)
+    # ==================================================================
+
+    def emocion(self) -> Dict[str, Any]:
+        """Estado emocional actual basado en metricas internas."""
+        p = self.pulso()
+        crec = self.medir_crecimiento()
+        sesgos = self.detectar_sesgos()
+        sup = self.superficie()
+        coherencia = p.get("coherencia", 0.0)
+        novedad = crec.get("novedad_promedio", 0.0)
+        return self._motor_emocional.evaluar(p, crec, sesgos, sup, coherencia, novedad)
+
+    # ==================================================================
     # AJUSTE DE CURIOSIDAD — retroalimenta VidaAutonoma
     # ==================================================================
 
@@ -568,6 +598,15 @@ class Consciencia:
         prof_simb = self.profundidad_simbolica()
         if prof_simb["coherencia_media"] > 0.5 and prof_simb["arboles_construidos"] > 5:
             ajustes["introspeccion"] *= 1.3  # auto-conocimiento cuando hay coherencia
+
+        # Fuerza 10: Efectos emocionales
+        try:
+            emo = self.emocion()
+            for tipo, factor in emo.get("efectos", {}).items():
+                if tipo in ajustes:
+                    ajustes[tipo] *= factor
+        except Exception:
+            pass
 
         return {k: round(v, 4) for k, v in ajustes.items()}
 

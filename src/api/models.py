@@ -196,6 +196,7 @@ class ConscienciaResponse(BaseModel):
     sesgos: List[Dict[str, Any]]
     crecimiento: Dict[str, Any]
     narrativa: str
+    emocion: Optional[Dict[str, Any]] = None
 
 
 class OrganismoResponse(BaseModel):
@@ -214,6 +215,8 @@ class OrganismoResponse(BaseModel):
     archivos_percibidos: int = 0
     memoria_viva: Optional[Dict] = None
     introspeccion: Optional[Dict] = None
+    emocion: Optional[Dict[str, Any]] = None
+    comunicacion: Optional[Dict[str, Any]] = None
 
 
 class StreamStatsResponse(BaseModel):
@@ -264,3 +267,9 @@ class DependenciasResponse(BaseModel):
     aristas: List[Dict[str, Any]]
     total_modulos: int
     total_dependencias: int
+
+
+# --- Comunicacion (Fase 16) ---
+
+class ComunicacionRequest(BaseModel):
+    concepto: str = Field(..., min_length=1, max_length=200, description="Concepto a compartir")
