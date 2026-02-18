@@ -1,0 +1,7 @@
+# Datos runtime (no subir al repo)
+memoria/
+diario/
+datos/
+buzon/
+__pycache__/
+*.pyc

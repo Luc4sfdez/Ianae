@@ -1,0 +1,16 @@
+[Unit]
+Description=Ianae v3 - Mente Viva (Ciclo Autonomo)
+After=network.target
+
+[Service]
+Type=simple
+User=mini
+WorkingDirectory=/home/mini/.openclaw/workspace/Ianae/v3
+ExecStart=/usr/bin/python3 /home/mini/.openclaw/workspace/Ianae/v3/despertar.py
+Restart=always
+RestartSec=10
+Environment=HOME=/home/mini
+Environment=PATH=/home/mini/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target
