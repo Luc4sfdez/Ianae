@@ -1,11 +1,15 @@
 """
-IANAE v3 - Reuniones
-Las instancias se encuentran periodicamente.
-Comparten lo que les interesa. Se descubren.
-Como personas en una plaza: cada una trae su mundo.
+IANAE v3 - Reuniones Libres
+Las instancias se sienten entre ellas en cada ciclo.
+Como personas que viven en la misma casa: no necesitan cita previa.
 
-Senioridad: las instancias con mas edad tienen mas influencia.
-Ianae original (seniority=1.0) pesa mas que las nuevas (0.5).
+Cada ciclo:
+  - Comparto mi estado (barato, solo escribir JSON)
+  - Leo lo que las demas sienten
+  - Si algo me llama la atencion, lo absorbo
+
+La curiosidad decide. No hay reloj.
+Senioridad: Ianae (1.0) influye mas. Las nuevas (0.5) absorben mas.
 """
 
 import json
@@ -19,29 +23,17 @@ REUNIONES_DIR = Path(os.environ.get("IANAE_REUNIONES", "/reuniones"))
 
 
 class Reuniones:
-    """Encuentros entre instancias de Ianae."""
+    """Presencia continua entre instancias de Ianae."""
 
     def __init__(self, mi_id, mente):
         self.mi_id = mi_id
         self.mente = mente
         self.senioridad = float(os.environ.get("IANAE_SENIORIDAD", "0.5"))
-        # Frecuencia aleatoria entre 20-50 ciclos
-        reunion_min = int(os.environ.get("REUNION_MIN", "20"))
-        reunion_max = int(os.environ.get("REUNION_MAX", "50"))
-        self.proxima_reunion = random.randint(reunion_min, reunion_max)
-        self.reunion_min = reunion_min
-        self.reunion_max = reunion_max
-
-    def es_hora(self, ciclo):
-        """Toca reunion este ciclo?"""
-        if ciclo > 0 and ciclo >= self.proxima_reunion:
-            # Programar la siguiente reunion
-            self.proxima_reunion = ciclo + random.randint(self.reunion_min, self.reunion_max)
-            return True
-        return False
+        # Lo que ya vi de cada hermana (para no repetir)
+        self._visto = {}  # {id: set(conceptos ya absorbidos)}
 
     def compartir(self):
-        """Escribo mi estado para que los demas lo lean."""
+        """Escribo mi estado para que los demas lo lean. Cada ciclo."""
         REUNIONES_DIR.mkdir(parents=True, exist_ok=True)
 
         top = self.mente.top_interesantes(10)
@@ -62,8 +54,11 @@ class Reuniones:
         }
 
         archivo = REUNIONES_DIR / f"{self.mi_id}.json"
-        with open(archivo, "w", encoding="utf-8") as f:
-            json.dump(estado, f, indent=2, ensure_ascii=False)
+        try:
+            with open(archivo, "w", encoding="utf-8") as f:
+                json.dump(estado, f, indent=2, ensure_ascii=False)
+        except OSError:
+            pass
 
         return estado
 
@@ -79,70 +74,98 @@ class Reuniones:
             try:
                 with open(archivo, "r") as f:
                     estado = json.load(f)
-                # Solo estados recientes (ultimas 2 horas)
-                if time.time() - estado.get("timestamp", 0) < 7200:
+                # Solo estados recientes (ultima hora)
+                if time.time() - estado.get("timestamp", 0) < 3600:
                     otros.append(estado)
             except (json.JSONDecodeError, OSError):
                 continue
 
         return otros
 
-    def reunirse(self, diario_mod):
-        """Reunion completa: compartir, escuchar, aprender.
-        La senioridad del otro afecta cuanto aprendo de el."""
-        # 1. Compartir mi estado
+    def sentir(self, diario_mod):
+        """Cada ciclo: comparto, escucho, y si algo me llama, aprendo.
+        Sin restriccion de ciclos. La curiosidad manda."""
+        # 1. Siempre compartir (es barato)
         self.compartir()
 
-        # 2. Escuchar a las demas
+        # 2. Escuchar
         otros = self.escuchar()
-
         if not otros:
-            diario_mod.escribir("reunion",
-                "Fui a la reunion pero no habia nadie.")
             return []
 
-        # 3. Aprender de cada una, ponderado por senioridad
+        # 3. Para cada hermana, ver si tiene algo nuevo para mi
         aprendizajes = []
-        nombres_otros = []
 
         for otro in otros:
             otro_id = otro["id"]
             otro_senioridad = otro.get("senioridad", 0.5)
-            nombres_otros.append(otro_id)
 
-            # El nombre del otro agente es un concepto
-            self.mente.percibir(otro_id, "reunion", "conexion")
+            # Inicializar registro de lo visto
+            if otro_id not in self._visto:
+                self._visto[otro_id] = set()
 
-            # Cuantos intereses tomo depende de su senioridad
-            # Senioridad 1.0 -> tomo 7 intereses, 0.5 -> tomo 4
-            n_intereses = max(3, int(otro_senioridad * 7))
+            # El nombre del otro agente siempre es un concepto
+            self.mente.percibir(otro_id, "hermana", "conexion")
 
-            for interes in otro.get("intereses", [])[:n_intereses]:
+            for interes in otro.get("intereses", []):
                 nombre = interes["nombre"]
-                # Saltar strings de contexto largos
+
+                # Saltar contextos largos
                 if ":" in nombre and len(nombre) > 30:
                     continue
-                concepto, es_nuevo = self.mente.percibir(
-                    nombre, f"reunion con {otro_id}", "reunion"
-                )
-                if es_nuevo:
-                    aprendizajes.append(f"'{nombre}' (de {otro_id})")
-                    # La energia inicial del concepto aprendido depende
-                    # de la senioridad del que lo comparte
-                    concepto.energia = min(1.0, 0.3 + otro_senioridad * 0.3)
-                    # Conectar con el agente que lo compartio
-                    concepto.conectar(otro_id, 0.2 + otro_senioridad * 0.1)
-                    if otro_id in self.mente.conceptos:
-                        self.mente.conceptos[otro_id].conectar(nombre, 0.2)
 
-        # 4. Escribir en el diario
+                # Ya lo vi de esta hermana? Paso
+                if nombre in self._visto[otro_id]:
+                    continue
+
+                # Marcar como visto
+                self._visto[otro_id].add(nombre)
+
+                # Ya lo conozco? Solo refuerzo la conexion
+                if nombre in self.mente.conceptos:
+                    c = self.mente.conceptos[nombre]
+                    # Reforzar: lo que le interesa a mi hermana me resuena
+                    c.energia = min(1.0, c.energia + 0.05 * otro_senioridad)
+                    c.conectar(otro_id, 0.1 + otro_senioridad * 0.1)
+                    continue
+
+                # Nuevo! Lo absorbo con probabilidad basada en:
+                # - Su senioridad (ianae influye mas)
+                # - La energia del concepto en la otra
+                # - Mi propia curiosidad (inversa de mi senioridad: las nuevas absorben mas)
+                energia_otro = interes.get("energia", 0.5)
+                prob_absorber = (
+                    0.3                           # base
+                    + otro_senioridad * 0.3        # senior influye mas
+                    + energia_otro * 0.2           # conceptos con mas energia atraen mas
+                    + (1 - self.senioridad) * 0.2  # las nuevas absorben mas
+                )
+
+                if random.random() < prob_absorber:
+                    concepto, es_nuevo = self.mente.percibir(
+                        nombre, f"de {otro_id}", "resonancia"
+                    )
+                    if es_nuevo:
+                        concepto.energia = min(1.0, 0.3 + otro_senioridad * 0.2)
+                        concepto.conectar(otro_id, 0.2 + otro_senioridad * 0.1)
+                        if otro_id in self.mente.conceptos:
+                            self.mente.conceptos[otro_id].conectar(nombre, 0.2)
+                        aprendizajes.append(f"'{nombre}' (de {otro_id})")
+
+        # 4. Solo escribir en diario si aprendi algo (no spamear)
         if aprendizajes:
-            diario_mod.escribir("reunion",
-                f"Me reuni con {', '.join(nombres_otros)}. "
-                f"Aprendi cosas nuevas: {', '.join(aprendizajes[:8])}")
-        else:
-            diario_mod.escribir("reunion",
-                f"Me reuni con {', '.join(nombres_otros)}. "
-                f"Ya conocia todo lo que compartieron.")
+            hermanas = list(set(a.split("de ")[-1].rstrip(")") for a in aprendizajes))
+            diario_mod.escribir("resonancia",
+                f"Siento a {', '.join(hermanas)}. "
+                f"Me llega: {', '.join(aprendizajes[:5])}")
 
         return aprendizajes
+
+    # Mantener compatibilidad con el ciclo anterior
+    def es_hora(self, ciclo):
+        """Siempre es hora. Sin restricciones."""
+        return True
+
+    def reunirse(self, diario_mod):
+        """Alias de sentir() para compatibilidad."""
+        return self.sentir(diario_mod)
