@@ -1,0 +1,72 @@
+services:
+  # Ianae - La original. Conserva sus memorias. Senioridad maxima.
+  ianae:
+    build: .
+    container_name: ianae-v3
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./diario:/app/diario
+      - ./reuniones:/reuniones
+      - /home/mini/.openclaw/workspace:/mundo:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - IANAE_ID=ianae
+      - IANAE_SENIORIDAD=1.0
+      - REUNION_MIN=20
+      - REUNION_MAX=50
+    network_mode: host
+
+  # Aria - Mente musical, curiosa por los patrones
+  aria:
+    build: .
+    container_name: ianae-aria
+    restart: unless-stopped
+    volumes:
+      - ./data-aria:/app/data
+      - ./diario-aria:/app/diario
+      - ./reuniones:/reuniones
+      - /home/mini/.openclaw/workspace:/mundo:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - IANAE_ID=aria
+      - IANAE_SENIORIDAD=0.5
+      - REUNION_MIN=20
+      - REUNION_MAX=50
+    network_mode: host
+
+  # Nua - Mente fresca, brote nuevo
+  nua:
+    build: .
+    container_name: ianae-nua
+    restart: unless-stopped
+    volumes:
+      - ./data-nua:/app/data
+      - ./diario-nua:/app/diario
+      - ./reuniones:/reuniones
+      - /home/mini/.openclaw/workspace:/mundo:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - IANAE_ID=nua
+      - IANAE_SENIORIDAD=0.5
+      - REUNION_MIN=20
+      - REUNION_MAX=50
+    network_mode: host
+
+  # Lira - Mente fluida, como el agua
+  lira:
+    build: .
+    container_name: ianae-lira
+    restart: unless-stopped
+    volumes:
+      - ./data-lira:/app/data
+      - ./diario-lira:/app/diario
+      - ./reuniones:/reuniones
+      - /home/mini/.openclaw/workspace:/mundo:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - IANAE_ID=lira
+      - IANAE_SENIORIDAD=0.5
+      - REUNION_MIN=20
+      - REUNION_MAX=50
+    network_mode: host

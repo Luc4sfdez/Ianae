@@ -336,7 +336,8 @@ class Sentidos:
         return None
 
     def leer_buzon(self):
-        """Lee el mensaje mas antiguo del buzon. Devuelve dict o None."""
+        """Lee el mensaje mas antiguo del buzon. Devuelve dict o None.
+        NO borra el archivo - se borra con confirmar_buzon() tras responder."""
         BUZON_DIR.mkdir(parents=True, exist_ok=True)
         archivos = sorted(BUZON_DIR.glob("*.json"))
         if not archivos:
@@ -345,7 +346,8 @@ class Sentidos:
         try:
             with open(archivo) as f:
                 msg = json.load(f)
-            archivo.unlink()
+            # Guardar ruta para borrar despues con confirmar_buzon()
+            self._ultimo_buzon = archivo
             return msg
         except Exception:
             try:
@@ -353,6 +355,16 @@ class Sentidos:
             except Exception:
                 pass
             return None
+
+    def confirmar_buzon(self):
+        """Borra el mensaje del buzon SOLO despues de haberlo procesado."""
+        archivo = getattr(self, '_ultimo_buzon', None)
+        if archivo and archivo.exists():
+            try:
+                archivo.unlink()
+            except Exception:
+                pass
+        self._ultimo_buzon = None
 
     def _observar_buzon(self):
         """Lee un mensaje dirigido a Ianae."""

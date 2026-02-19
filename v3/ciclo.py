@@ -92,6 +92,8 @@ class CicloAutonomo:
         # 2b. RESPONDER - Si alguien me habla, respondo
         if fuente == "buzon":
             self._responder_mensaje(observacion, conceptos)
+            # Borrar del buzon SOLO despues de haber respondido
+            self.sentidos.confirmar_buzon()
 
         # 2c. CURIOSIDAD - Si encuentro algo nuevo e interesante, pregunto a Ollama
         if d_explorar > 0.4 and conceptos:
