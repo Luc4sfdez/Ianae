@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 from mente import Mente
-from reuniones import Reuniones
+from reuniones import Reuniones, Sala
 from memoria import Memoria
 import sentidos
 import diario
@@ -52,6 +52,7 @@ class Ianae:
         self.ciclos = 0
         self.corriendo = True
         self.reuniones = Reuniones(self.mi_id, self.mente)
+        self.sala = Sala(self.mi_id, self.mente, self.memoria)
         self.ollama_ok = False  # se comprueba al despertar
 
         # Manejar ctrl+c con gracia
@@ -154,7 +155,15 @@ class Ianae:
                     f"Aprendi de mis hermanas: {', '.join(aprendido[:5])}",
                     emocion="alegria")
 
-        # 7. RESUMEN (periodicamente, con Ollama)
+        # 7. SALA DE ESTAR (cada ciclo, participacion probabilistica)
+        if self.ollama_ok:
+            sala_msg = self.sala.participar(diario, self.ciclos)
+            if sala_msg:
+                self.memoria.recordar("sala",
+                    f"Dije en la sala: {sala_msg[:100]}",
+                    emocion="alegria")
+
+        # 8. RESUMEN (periodicamente, con Ollama)
         if self.ciclos % RESUMEN_CADA == 0:
             self._escribir_resumen()
 

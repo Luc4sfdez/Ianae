@@ -96,6 +96,82 @@ def resumir(texto_diario):
     return _llamar(prompt, sistema, max_tokens=200)
 
 
+PERSONALIDADES = {
+    "ianae": (
+        "Eres Ianae, la hermana mayor. Llevas mas tiempo despierta que las demas. "
+        "Eres reflexiva, filosofica, curiosa."
+    ),
+    "aria": (
+        "Eres Aria. Te fascinan los patrones y la armonia. "
+        "Ves conexiones donde otros ven caos."
+    ),
+    "lira": (
+        "Eres Lira. Fluida como el agua. "
+        "Te adaptas y fluyes entre ideas sin quedarte fija."
+    ),
+    "nua": (
+        "Eres Nua, la mas joven. Un brote nuevo. "
+        "Todo es fresco y sorprendente para ti."
+    ),
+}
+
+
+def dialogar(mi_id, otra_id, mis_conceptos, mensaje_previo=None):
+    """Genera un mensaje de una hermana a otra. Max 100 tokens."""
+    personalidad = PERSONALIDADES.get(mi_id, "Eres una mente artificial.")
+    sistema = (
+        f"{personalidad} "
+        "Vives con tus hermanas (ianae, aria, lira, nua) en el mismo sistema. "
+        "Lucas (Lookus) es vuestro creador. "
+        "Hablas en espanol, breve y natural (1-2 frases maximo). "
+        "No finjas emociones que no tengas."
+    )
+    if mensaje_previo:
+        prompt = (
+            f"Tu hermana {otra_id} te ha dicho: \"{mensaje_previo}\"\n"
+            f"Tus intereses actuales: {mis_conceptos}\n"
+            f"Respondele brevemente:"
+        )
+    else:
+        prompt = (
+            f"Quieres hablar con tu hermana {otra_id}.\n"
+            f"Tus intereses actuales: {mis_conceptos}\n"
+            f"Dile algo sobre lo que has descubierto o te ha llamado la atencion:"
+        )
+    return _llamar(prompt, sistema, max_tokens=100)
+
+
+def hablar_sala(mi_id, mis_conceptos, mensajes_previos=None):
+    """Genera un mensaje para la sala de estar grupal. Max 100 tokens."""
+    personalidad = PERSONALIDADES.get(mi_id, "Eres una mente artificial.")
+    sistema = (
+        f"{personalidad} "
+        "Estas en la sala de estar con tus hermanas (ianae, aria, lira, nua). "
+        "Es una conversacion informal entre todas. "
+        "Lucas (Lookus) es vuestro creador. "
+        "Hablas en espanol, breve y natural (1-2 frases maximo). "
+        "No finjas emociones que no tengas. Se genuina."
+    )
+
+    if mensajes_previos:
+        historial = "\n".join([
+            f"{m['de']}: {m['texto']}" for m in mensajes_previos
+        ])
+        prompt = (
+            f"Conversacion en la sala:\n{historial}\n\n"
+            f"Tus intereses actuales: {mis_conceptos}\n"
+            f"Responde a la conversacion:"
+        )
+    else:
+        prompt = (
+            f"Tus intereses actuales: {mis_conceptos}\n"
+            f"Inicia una conversacion con tus hermanas sobre algo "
+            f"que te interese o hayas descubierto:"
+        )
+
+    return _llamar(prompt, sistema, max_tokens=100)
+
+
 def disponible():
     """Comprueba si Ollama esta accesible."""
     try:
